@@ -1,4 +1,4 @@
-import type { Fingers, HandState } from './vision'
+import type { Fingers, HandState, Point } from './vision'
 import { LEAN_BAND } from './chords'
 import { CONNECTIONS, DIAL, TIPS, frameOf, handTemplate, place } from './pose'
 import { paintWave, type WaveSpec } from './wave'
@@ -8,6 +8,14 @@ export class Overlay {
   /** Device pixels per CSS pixel, so the layout constants below stay honest. */
   private scale = 1
   private onResize = () => this.resize()
+  /**
+   * Where the camera image actually sits on the canvas. The video is drawn
+   * cover-fit and centre-cropped, so it only fills the whole canvas when the two
+   * happen to share an aspect ratio. Landmarks have to be projected through the
+   * same rect or the skeleton stretches away from the hands it is tracing —
+   * which is exactly what a narrow viewport used to look like.
+   */
+  private view = { x: 0, y: 0, width: 0, height: 0 }
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!
@@ -36,6 +44,9 @@ export class Overlay {
       const cover = Math.max(w / video.videoWidth, h / video.videoHeight)
       const dw = video.videoWidth * cover
       const dh = video.videoHeight * cover
+      // Centred, so the crop is symmetric and the rect is the same whether or
+      // not the mirror transform is applied.
+      this.view = { x: (w - dw) / 2, y: (h - dh) / 2, width: dw, height: dh }
       ctx.save()
       ctx.translate(w, 0)
       ctx.scale(-1, 1)
@@ -54,10 +65,16 @@ export class Overlay {
     ctx.fillRect(0, h * 0.55, w, h * 0.45)
   }
 
+  /** Normalised video coordinates to canvas pixels, through the cover crop. */
+  private project(p: Point): Point {
+    const { x, y, width, height } = this.view
+    return { x: x + p.x * width, y: y + p.y * height }
+  }
+
   drawHands(hands: HandState[]): void {
-    const { ctx, width: w, height: h, scale } = this
+    const { ctx, scale } = this
     for (const hand of hands) {
-      const px = hand.points.map((p) => ({ x: p.x * w, y: p.y * h }))
+      const px = hand.points.map((p) => this.project(p))
 
       ctx.strokeStyle = 'rgba(255,255,255,0.3)'
       ctx.lineWidth = 1.5 * scale
@@ -85,8 +102,8 @@ export class Overlay {
    * screen. It fades as you reach it — a cue you no longer need is clutter.
    */
   drawGhost(hand: HandState, fingers: Fingers, reached: boolean, lean?: { major: boolean }): void {
-    const { ctx, width: w, height: h, scale } = this
-    const px = hand.points.map((p) => ({ x: p.x * w, y: p.y * h }))
+    const { ctx, scale } = this
+    const px = hand.points.map((p) => this.project(p))
     const frame = frameOf(px)
     const ghost = place(handTemplate(fingers), frame)
 

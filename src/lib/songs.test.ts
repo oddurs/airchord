@@ -88,6 +88,6 @@ test('the chord a change names is the chord the instrument would build', () => {
   const change = { beat: 0, degree: 4, major: false }
   assert.deepEqual(
     chordOf(key, change).freqs,
-    buildChord(key, { degree: 4, major: false, voicing: 1, octaveDown: false })!.freqs,
+    buildChord(key, { degree: 4, major: false, voicing: 1, octave: 0 })!.freqs,
   )
 })

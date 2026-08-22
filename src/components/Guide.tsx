@@ -6,6 +6,7 @@ const LEFT: [string, string][] = [
   ['Index + pinky + thumb', 'degree VII'],
   ['Lean inward', 'major'],
   ['Lean outward', 'minor'],
+  ['Raise or lower', 'octave up or down'],
 ]
 
 const BOTH: [string, string][] = [
@@ -18,7 +19,6 @@ const RIGHT: [string, string][] = [
   ['Two fingers', 'first inversion'],
   ['Three fingers', 'major / minor 7th'],
   ['Four fingers', 'dominant / diminished 7th'],
-  ['Thumb out', 'octave down'],
   ['Roll wrist', 'filter'],
   ['Raise hand', 'volume'],
 ]

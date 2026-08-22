@@ -21,6 +21,12 @@ is where it points.
 The thumb margin is roughly 0.04 either side and is the narrowest signal in the instrument. More
 capture sessions widen it. Per-player calibration is the real answer.
 
+**Nothing drastic should ride the thumb.** The octave used to, and it was reported from playing as
+harsh and unpredictable — the most sweeping musical change in the instrument on its least certain
+input. Register now follows the height of the chord hand, which is stable, continuous, visible, and
+otherwise unused while both hands are up. The thumb still counts toward the scale degree, where
+being occasionally wrong costs one step rather than a whole octave.
+
 **A hand held upright does not read zero roll.** The dataset puts a neutral left hand at +0.05 to
 +0.16 radians and a neutral right at −0.11 — anatomy, and opposite for the two hands. The major/minor
 band therefore sits below zero rather than straddling it.

@@ -236,7 +236,7 @@ export function keyOf(song: Song): Key {
 
 /** Root position, because every song here is accompaniment. */
 export function chordOf(key: Key, change: Degree): Chord {
-  const chord = buildChord(key, { degree: change.degree, major: change.major, voicing: 1, octaveDown: false })
+  const chord = buildChord(key, { degree: change.degree, major: change.major, voicing: 1, octave: 0 })
   if (!chord) throw new Error('A change with no degree')
   return chord
 }

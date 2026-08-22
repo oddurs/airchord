@@ -1,5 +1,5 @@
 import type { Fingers, HandState, Side } from './vision'
-import { FingerClassifier } from './classifier'
+import { FingerClassifier, registerFromHeight } from './classifier'
 import { buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Chord, type Key } from './chords'
 import { Committer, Grace, Latch, Smoothed } from './smoothing'
 import type { PoseTarget } from './pose'
@@ -52,7 +52,10 @@ export interface Hud {
   name: string | null
   numeral: string | null
   quality: string | null
-  octaveDown: boolean
+  /** -1 an octave down, 0 as written, +1 an octave up. */
+  octave: number
+  /** Height of the chord hand, 0-1, so the register rail can show where it sits. */
+  handHeight: number
   filter: number
   volume: number
   hands: number
@@ -63,7 +66,8 @@ export const IDLE_HUD: Hud = {
   name: null,
   numeral: null,
   quality: null,
-  octaveDown: false,
+  octave: 0,
+  handHeight: 0,
   filter: 0,
   volume: 0,
   hands: 0,
@@ -88,7 +92,7 @@ interface Identity {
    * every one of them. Sitting in the fast tier is why octave jumps read as
    * lurches.
    */
-  octaveDown: boolean
+  octave: number
 }
 
 interface Colour {
@@ -156,8 +160,8 @@ export class Engine {
     left: new Latch(CONFIDENT_ON, CONFIDENT_OFF),
     right: new Latch(CONFIDENT_ON, CONFIDENT_OFF),
   }
-  /** Kept when the right hand is away, so the octave does not flip on its exit. */
-  private octave = false
+  /** Held while the chord hand is away, rather than snapping back to centre. */
+  private register = 0
   private startedAt = 0
   private lastFrame = 0
   private fps = new Smoothed(0.1)
@@ -269,12 +273,14 @@ export class Engine {
     const resting = liveLeft !== null && leftHeight < REST_HEIGHT
     const degree = liveLeft && leftFingers && !resting ? degreeFromFingers(leftFingers) : null
 
-    // The octave is held when the right hand is away, so putting it down does
-    // not silently transpose what is already sounding.
-    if (rightFingers) this.octave = rightFingers[0]
+    // Register follows the height of the chord hand. It used to ride the right
+    // thumb — the least reliable measurement in the instrument, and invisible
+    // besides. Height is stable, continuous, and means something before it is
+    // learned: lift the chord hand to lift the chord.
+    if (liveLeft) this.register = registerFromHeight(leftHeight, this.register)
 
     const identity =
-      degree === null ? null : { degree, major: this.isMajor, octaveDown: this.octave }
+      degree === null ? null : { degree, major: this.isMajor, octave: this.register }
     const expected =
       identity !== null &&
       this.target !== null &&
@@ -288,7 +294,7 @@ export class Engine {
     // rather than waiting out a hold that would keep sounding into an empty room.
     let committed: Identity | null
     if (liveLeft) {
-      const key = `${identity?.degree}|${identity?.major}|${identity?.octaveDown}`
+      const key = `${identity?.degree}|${identity?.major}|${identity?.octave}`
       committed = this.identity.update(identity, identity && key, now, hold)
     } else if (left) {
       committed = this.identity.hold()
@@ -350,7 +356,8 @@ export class Engine {
       name: chord?.name ?? null,
       numeral: chord?.numeral ?? null,
       quality: chord?.quality ?? null,
-      octaveDown: chord?.octaveDown ?? false,
+      octave: chord?.octave ?? 0,
+      handHeight: leftHeight,
       filter: Math.round(tilt * 100),
       volume: chord ? Math.round(volume * 20) / 20 : 0,
       hands: hands.length,
@@ -419,7 +426,8 @@ export function hudEqual(a: Hud, b: Hud): boolean {
     a.name === b.name &&
     a.numeral === b.numeral &&
     a.quality === b.quality &&
-    a.octaveDown === b.octaveDown &&
+    a.octave === b.octave &&
+    Math.round(a.handHeight * 40) === Math.round(b.handHeight * 40) &&
     a.filter === b.filter &&
     a.volume === b.volume &&
     a.hands === b.hands &&

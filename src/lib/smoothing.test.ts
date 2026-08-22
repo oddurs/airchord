@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Committer, Grace, Latch, Smoothed } from './smoothing.ts'
+import { registerFromHeight } from './classifier.ts'
 
 // Extension ratios measured from real footage: curled fingers sit at 0.62-0.80,
 // extended ones at 1.26-1.42. The latch band lives in the gap between.
@@ -123,4 +124,21 @@ test('a released committer still needs a full hold before sounding again', () =>
   c.release()
   assert.equal(c.update('E', 'E', 160), null, 'no instant re-entry')
   assert.equal(c.update('E', 'E', 300), 'E')
+})
+
+test('register follows the height of the chord hand', () => {
+  assert.equal(registerFromHeight(0.1, 0), -1, 'low is an octave down')
+  assert.equal(registerFromHeight(0.5, 0), 0, 'mid is as written')
+  assert.equal(registerFromHeight(0.9, 0), 1, 'high is an octave up')
+})
+
+test('register holds through drift near a boundary', () => {
+  // A hand hovering at a boundary must not flicker between octaves — an octave
+  // is the largest change the instrument can make.
+  assert.equal(registerFromHeight(0.36, -1), -1, 'just over, still low')
+  assert.equal(registerFromHeight(0.32, 0), 0, 'just under, still mid')
+  assert.equal(registerFromHeight(0.64, 1), 1, 'just under, still high')
+  // But a decisive move always wins.
+  assert.equal(registerFromHeight(0.8, -1), 1)
+  assert.equal(registerFromHeight(0.1, 1), -1)
 })

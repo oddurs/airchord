@@ -16,10 +16,25 @@ export default function Hud({ hud }: { hud: HudState }) {
           </span>
           <span className={`${styles.quality} label`}>
             {hud.quality}
-            {hud.octaveDown && <span className={styles.octave}>8ve down</span>}
+            {hud.octave !== 0 && (
+              <span className={styles.octave}>{hud.octave > 0 ? '8ve up' : '8ve down'}</span>
+            )}
           </span>
         </output>
       )}
+
+      {/* Register rail, mirroring the volume rail opposite. The octave used to be
+          an invisible thumb state; it is now somewhere you can watch your hand
+          move before you hear the chord move. */}
+      <div className={styles.register} aria-hidden="true">
+        {[1, 0, -1].map((zone) => (
+          <span
+            key={zone}
+            className={`${styles.zone} ${hud.octave === zone ? styles.zoneOn : ''}`}
+          />
+        ))}
+        <span className={styles.hand} style={{ bottom: `${hud.handHeight * 100}%` }} />
+      </div>
 
       <div className={styles.readout}>
         <div className={styles.meter} aria-hidden="true">

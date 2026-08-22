@@ -1,0 +1,26 @@
+Airchord License
+
+Copyright (c) 2026 Oddur Sigurdsson
+
+Airchord is an independent reimplementation of Gesture Synth by Eric Wei, and its
+gesture vocabulary and musical design originate there. Airchord is therefore
+offered under the same terms as the work it derives from, and cannot grant more
+than those terms allow.
+
+Permission is granted to use, copy, modify, and share this software for personal,
+educational, and non-commercial purposes.
+
+You are welcome to create and share your own versions or adaptations of this
+project, provided that credit is given both to Airchord and to the original
+Gesture Synth project and its creator.
+
+Commercial use, including selling this software or incorporating substantial
+portions of it into a paid product, requires permission from the author of
+Gesture Synth as well as the author of Airchord.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

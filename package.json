@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\"",
     "verify": "npm run typecheck && npm test && BUILD_DIR=.next-verify npm run build",
-    "audio": "node scripts/audio-check.mjs"
+    "audio": "node scripts/audio-check.mjs",
+    "build:pages": "npm run assets && STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/airchord next build",
+    "preview": "node scripts/serve-static.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.14",

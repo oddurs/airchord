@@ -5,8 +5,14 @@ export * from './features'
 
 // Both are served from /public by `npm run assets`, so the instrument works
 // offline and doesn't stall on a CDN round-trip at startup.
-const WASM_ROOT = '/mediapipe/wasm'
-const MODEL = '/mediapipe/hand_landmarker.task'
+//
+// The base path must be applied here: a GitHub Pages project site serves from a
+// subdirectory, and these are fetched by absolute URL rather than bundled, so
+// they are invisible to Next's own asset rewriting. Without it the page loads,
+// the camera starts, and hand tracking silently never begins.
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+const WASM_ROOT = `${BASE}/mediapipe/wasm`
+const MODEL = `${BASE}/mediapipe/hand_landmarker.task`
 
 // MediaPipe documents handedness as assuming a mirrored selfie frame, which
 // implies a raw getUserMedia frame needs its labels swapped. In practice it does

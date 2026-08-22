@@ -1,0 +1,34 @@
+Airchord
+========
+
+Airchord is an independent reimplementation of **Gesture Synth**, created by
+Eric Wei.
+
+  Original project : https://github.com/ericwei97-cloud/gesture-synth
+  Live version     : https://gesture-synth-weld.vercel.app/
+  Author           : https://indecisiveeric.com
+
+The gesture vocabulary — which fingers select which scale degree, the wrist lean
+that overrides the key, the right hand's control of voicing, octave, filter and
+volume — is Eric Wei's design. Airchord reimplements it from observed behaviour
+and from the original's published documentation; no source code was copied. The
+original's source was read to extract parameter values, which are facts about how
+the instrument behaves.
+
+Gesture Synth's licence permits adaptation for personal, educational and
+non-commercial purposes provided credit is given, and reserves commercial use to
+its author. Airchord inherits those terms. See LICENSE.
+
+Third-party components
+----------------------
+
+MediaPipe Hand Landmarker (model and WebAssembly runtime)
+  Copyright Google LLC — Apache License 2.0
+  https://github.com/google-ai-edge/mediapipe
+
+Next.js, React
+  Copyright Vercel, Inc. and Meta Platforms, Inc. — MIT License
+
+Inter typeface
+  Copyright The Inter Project Authors — SIL Open Font License 1.1
+  https://github.com/rsms/inter

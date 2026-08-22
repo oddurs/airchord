@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # Unit tests include replaying the captured gesture dataset through the
+      # live classifier — the check that catches accuracy regressions.
+      - run: npm test
+      - run: npm run build:pages
+
+  audio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: npm ci
+      - run: npm run build:pages
+      - name: Serve the export
+        run: NEXT_PUBLIC_BASE_PATH=/airchord node scripts/serve-static.mjs &
+      # Clipping is invisible to every other kind of check: the instrument once
+      # shipped clipping 44% of its samples while typechecking and building
+      # cleanly. This renders the real signal path and measures it.
+      - name: Measure the audio
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          AUDIO_CHECK_URL: https://localhost:9191/airchord/
+        run: npm run audio

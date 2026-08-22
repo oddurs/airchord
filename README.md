@@ -1,5 +1,9 @@
 # Airchord
 
+> An independent reimplementation of [Gesture Synth](https://github.com/ericwei97-cloud/gesture-synth)
+> by [Eric Wei](https://indecisiveeric.com). The gesture vocabulary and musical design are his.
+> Non-commercial use only — see [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+
 A chord synthesiser you play with your hands, in the browser. Raise fingers to pick a chord, tilt
 your wrists to shape it. Your left hand chooses *what* is played; your right hand chooses *how* it
 sounds — voicing, octave, filter, and volume.
@@ -88,12 +92,25 @@ clicking through the warning; iOS won't.
 ## Development
 
 ```fish
-npm run dev        # https dev server on :9191
-npm test           # music-theory and gesture-mapping tests
-npm run verify     # typecheck + tests + production build
-npm run build      # production build
-npm start          # production server
+npm run dev          # https dev server on :9191, LAN-visible
+npm test             # unit tests, incl. replaying the captured gesture dataset
+npm run verify       # typecheck + tests + build — the gate that must stay green
+npm run audio        # renders the real signal path offline and measures it
+npm run build:pages  # static export for GitHub Pages, into out/
+npm run preview      # serve that export over https, for phone testing
 ```
+
+`npm run dev` then `/?capture` opens the gesture dataset tool.
+
+## Deployment
+
+The app is entirely client-side, so it ships as a static export to GitHub Pages. `github.io` is a
+secure context, so the camera works there with no certificate work — the local certificate setup
+below is only needed to test on a phone against your own machine.
+
+The Pages build sets a base path, and the MediaPipe wasm and model are fetched by absolute URL, so
+those paths are prefixed explicitly in `vision.ts`. Getting that wrong presents as *"the camera
+works but hand tracking never starts"*.
 
 `npm run assets` vendors the MediaPipe wasm runtime and the 7.8 MB hand-landmark model into
 `public/mediapipe/`. `dev` and `build` run it for you; both directories are gitignored.

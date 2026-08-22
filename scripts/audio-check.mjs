@@ -145,6 +145,16 @@ try {
     )
   }
 
+  console.log('\n  backing beat\n')
+  console.log('  case                    hits     peak')
+  for (const beat of report.beats ?? []) {
+    const bad = beat.found !== beat.expected || beat.peak > PEAK_CEILING
+    if (bad) failures.push(`${beat.label} sounded ${beat.found} of ${beat.expected} hits at peak ${beat.peak}`)
+    console.log(
+      `  ${beat.label.padEnd(22)} ${String(`${beat.found}/${beat.expected}`).padStart(5)}   ${String(beat.peak).padStart(6)}${bad ? '  ✗' : ''}`,
+    )
+  }
+
   console.log(
     `\n  worst peak ${report.worstPeak}  ·  clipped samples ${report.totalClipped}\n`,
   )

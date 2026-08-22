@@ -1,8 +1,9 @@
 import { KEYS, buildChord } from './chords'
+import { SIGNATURES, barHits } from './beat'
 import { buildKit } from './drums'
 import type { Voice } from './groove'
 import { buildSynth } from './synth'
-import { TIMBRES, type TimbreId } from './timbre'
+import { TIMBRES, timbreById, type TimbreId } from './timbre'
 
 /**
  * Renders the real signal path offline and measures it. Audio defects are
@@ -50,10 +51,21 @@ export interface StrikeMeasurement {
   ceiling: number
 }
 
+export interface BeatMeasurement {
+  label: string
+  /** Hits in the bar, and how many produced audible energy where they were
+   *  scheduled. A pattern that schedules silence is the one defect a listener
+   *  cannot distinguish from a pattern that is simply sparse. */
+  expected: number
+  found: number
+  peak: number
+}
+
 export interface AudioReport {
   levels: Measurement[]
   transitions: TransitionMeasurement[]
   strikes: StrikeMeasurement[]
+  beats: BeatMeasurement[]
   worstPeak: number
   totalClipped: number
 }
@@ -171,7 +183,9 @@ async function renderMix(voice: TimbreId): Promise<AudioBuffer> {
   synth.play(chord(1, 4, true))
   synth.setVolume(1)
 
-  const kit = buildKit(ctx, synth.mix)
+  // The kit as the backing beat actually builds it: this voice's tuning, and
+  // its share of the same room the chords are in.
+  const kit = buildKit(ctx, synth.mix, { voicing: timbreById(voice).kit, room: synth.room })
   for (const drum of KIT) kit.trigger(drum, SECONDS / 3, 1)
   // The chord is struck on the same beat the kit lands on, which is the point
   // at which everything in the mix is loud at once.
@@ -191,6 +205,48 @@ async function renderStrum(voice: TimbreId): Promise<AudioBuffer> {
   synth.setVolume(1)
   synth.strike(SECONDS / 2, 1)
   return ctx.startRendering()
+}
+
+/** Peak level in a short window — enough to say whether a hit happened. */
+function peakIn(buffer: AudioBuffer, from: number, to: number): number {
+  let peak = 0
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch)
+    const start = Math.max(0, Math.floor(from * buffer.sampleRate))
+    const end = Math.min(data.length, Math.floor(to * buffer.sampleRate))
+    for (let i = start; i < end; i++) peak = Math.max(peak, Math.abs(data[i]))
+  }
+  return peak
+}
+
+/**
+ * One bar of the backing beat, through the real kit, at a real tempo — the only
+ * check that the pattern a listener hears is the pattern that was written down.
+ */
+async function renderBeat(voice: TimbreId, signatureId: string): Promise<BeatMeasurement> {
+  const bpm = 92
+  const seconds = 60 / bpm
+  const signature = SIGNATURES.find((sig) => sig.id === signatureId)!
+  const length = signature.beats * seconds + 0.3
+  const ctx = new OfflineAudioContext(2, Math.ceil(RATE * length), RATE)
+  const synth = buildSynth(ctx)
+  synth.setTimbre(voice)
+
+  const kit = buildKit(ctx, synth.mix, { voicing: timbreById(voice).kit, room: synth.room })
+  const hits = barHits(signature, 0)
+  const at = 0.05
+  for (const hit of hits) kit.trigger(hit.voice, at + hit.beat * seconds, hit.gain)
+
+  const buffer = await ctx.startRendering()
+  const onsets = [...new Set(hits.map((h) => h.beat))].sort((a, b) => a - b)
+  const found = onsets.filter((beat) => peakIn(buffer, at + beat * seconds, at + beat * seconds + 0.03) > 0.01)
+
+  return {
+    label: `${voice} ${signatureId}`,
+    expected: onsets.length,
+    found: found.length,
+    peak: Number(peakIn(buffer, 0, length).toFixed(3)),
+  }
 }
 
 export async function runAudioCheck(): Promise<AudioReport> {
@@ -241,10 +297,17 @@ export async function runAudioCheck(): Promise<AudioReport> {
     strikes.push({ label: `${voice} strum`, dip: dipAt(buffer, at), ceiling: declared <= 0.15 ? 0.45 : 0.7 })
   }
 
+  // One render per pattern. Each voice's kit is already measured in the mix
+  // above, so rendering every voice against every signature would only be
+  // slower — and it was: the extra renders were enough to lose the debugger.
+  const beats: BeatMeasurement[] = []
+  for (const signature of SIGNATURES) beats.push(await renderBeat('felt', signature.id))
+
   return {
     levels,
     transitions,
     strikes,
+    beats,
     worstPeak: Math.max(...levels.map((l) => l.peak)),
     totalClipped: levels.reduce((n, l) => n + l.clipped, 0),
   }

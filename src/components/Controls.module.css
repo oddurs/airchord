@@ -70,3 +70,58 @@
 .link[aria-pressed='true'] {
   color: var(--ink-full);
 }
+
+/* Tempo is the one control here that wants a continuous gesture rather than a
+   list — you hunt for a tempo, you do not pick one. Stripped to a hairline and
+   a dot, like everything else. */
+.tempo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider {
+  appearance: none;
+  width: 96px;
+  height: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 9px;
+  height: 9px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--ink-full);
+}
+
+.slider::-moz-range-track {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.slider::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink-full);
+}
+
+.slider:focus-visible {
+  outline: 1px solid var(--ink-strong);
+  outline-offset: 4px;
+}
+
+.bpm {
+  min-width: 2.4em;
+  font-size: 14px;
+  color: var(--ink-full);
+}

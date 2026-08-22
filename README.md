@@ -59,33 +59,20 @@ saturation, where the filter sits, how wet it is, and above all what happens whe
 Your choice is remembered, along with the key. Nothing else is stored, and none of it leaves the
 device.
 
-## Playing a song
+## The beat
 
-Pick one from **Song** at the top of the screen. The instrument transposes it into the key it was
-written in and shows you the next four bars.
+**Beat** puts a loop behind you — `4/4`, `3/4` or `6/8` — and **Tempo** sets how fast. That is the
+whole control surface: there is nothing to load and nothing to arrange.
 
-| Mode | What it does |
-|---|---|
-| **Learn** | No clock. The song waits until you reach the chord, then moves on. |
-| **Play** | In time, with a count-in and a drum track. Tempo down to half speed. |
+The kit is voiced by whichever **Tone** you are on, so it belongs with the chords rather than sitting
+next to them: Felt gets a low, soft kit with some room on it, Nylon a dry and close one, Glass an
+airy kit sharing the reverb the pad is already filling. A little of the kit goes through the same
+room as the chords, which is what makes it sound like one recording.
 
-Below the lane, both hands are drawn: the **chord hand**, leaning the way your wrist has to go, and
-the **sound hand**, which holds root position throughout. The same shapes are drawn on top of your
-own hands as you play — dashed, with a ring on each finger that has to be up, and a **dial under your
-wrist** showing which way to lean and where you currently are. Each fades as you reach it.
+Every fourth bar differs slightly, so a loop breathes instead of merely repeating. Tempo changes land
+on the next bar line, never in the middle of a pattern. Your beat and tempo are remembered.
 
-Songs have sections. The panel tells you which one you are in and how many bars until the next, the
-drums change pattern with it — a chorus is not the verse played louder — and the last bar before a
-change is a fill. The chord you are holding is **struck in rhythm** rather than left to drone, so the
-part you are playing lands on the beat with everything else. The song ends where it ends.
-
-After each chord change it tells you what happened: on the beat, late and by how much, or right chord
-and wrong lean. It grades the moment your *hand* arrived, not the moment the sound started — there is
-about 150 ms between those, and blaming you for it would be dishonest. What that lag means in
-practice is that your hand has to be in position roughly a quarter of a beat before the downbeat.
-
-**Creep** is four bars — one finger, three, four, then four again with the wrist rolled over — and
-they repeat for the whole song.
+The song tutorials are hidden for now. They still work — `?songs` brings the panel back.
 
 ## Playing it on a phone
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { KEYS } from '@/lib/chords'
+import { BPM_RANGE, SIGNATURES } from '@/lib/beat'
 import { TIMBRES, type TimbreId } from '@/lib/timbre'
 import styles from './Controls.module.css'
 
@@ -9,6 +10,10 @@ interface Props {
   onKeyChange: (index: number) => void
   timbre: TimbreId
   onTimbreChange: (id: TimbreId) => void
+  beat: string | null
+  onBeatChange: (id: string | null) => void
+  bpm: number
+  onBpmChange: (bpm: number) => void
   guideOpen: boolean
   onToggleGuide: () => void
   onOpenAbout: () => void
@@ -21,6 +26,10 @@ export default function Controls({
   onKeyChange,
   timbre,
   onTimbreChange,
+  beat,
+  onBeatChange,
+  bpm,
+  onBpmChange,
   guideOpen,
   onToggleGuide,
   onOpenAbout,
@@ -54,6 +63,41 @@ export default function Controls({
           ))}
         </select>
       </label>
+
+      <label className={styles.field}>
+        <span className={`${styles.name} label`}>Beat</span>
+        <select
+          className={styles.select}
+          value={beat ?? ''}
+          onChange={(e) => onBeatChange(e.target.value || null)}
+        >
+          <option value="">Off</option>
+          {SIGNATURES.map(({ id, label }) => (
+            <option key={id} value={id}>
+              {id} · {label.toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {beat && (
+        <label className={styles.field}>
+          <span className={`${styles.name} label`}>Tempo</span>
+          <span className={styles.tempo}>
+            <input
+              className={styles.slider}
+              type="range"
+              min={BPM_RANGE.min}
+              max={BPM_RANGE.max}
+              step={1}
+              value={bpm}
+              onChange={(e) => onBpmChange(Number(e.target.value))}
+              aria-label="Tempo in beats per minute"
+            />
+            <span className={`${styles.bpm} tabular`}>{bpm}</span>
+          </span>
+        </label>
+      )}
 
       <nav className={styles.links}>
         <button

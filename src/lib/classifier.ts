@@ -55,3 +55,35 @@ export class FingerClassifier {
     return this.latches.map((latch, i) => latch.update(signals[i])) as Fingers
   }
 }
+
+/**
+ * Register from the height of the chord hand.
+ *
+ * The octave used to ride the right thumb, which is the least reliable
+ * measurement in the instrument — roughly 0.04 of margin either side, against
+ * 0.5 for every other finger. Putting the most drastic musical change on the
+ * shakiest input was the design error, not the tuning.
+ *
+ * Height is stable, continuous, visible, and means something before it is
+ * learned: lift the chord hand to lift the chord. It is also otherwise unused
+ * while both hands are up.
+ *
+ * Boundaries overlap by GUARD so a hand drifting near one holds its register
+ * rather than flickering across it.
+ */
+export const REGISTER_LOW = 0.34
+export const REGISTER_HIGH = 0.66
+const GUARD = 0.05
+
+/** -1 an octave down, 0 as written, +1 an octave up. */
+export function registerFromHeight(height: number, previous: number): number {
+  const settled = (lower: number, upper: number) => height >= lower && height <= upper
+  // Staying put needs only to remain loosely within the current band; leaving
+  // it needs to clear the guard.
+  if (previous === -1 && height < REGISTER_LOW + GUARD) return -1
+  if (previous === 1 && height > REGISTER_HIGH - GUARD) return 1
+  if (previous === 0 && settled(REGISTER_LOW - GUARD, REGISTER_HIGH + GUARD)) return 0
+  if (height < REGISTER_LOW) return -1
+  if (height > REGISTER_HIGH) return 1
+  return 0
+}

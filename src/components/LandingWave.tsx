@@ -74,7 +74,7 @@ export default function LandingWave() {
         const degree = wrap(step, 7) + 1
         const major = wrap(step, 3) !== 2
         const voicing = wrap(step, 4) + 1
-        const chord = buildChord(KEY, { degree, major, voicing, octaveDown: false })
+        const chord = buildChord(KEY, { degree, major, voicing, octave: 0 })
         return { degree, major, freqs: chord?.freqs ?? [] }
       }
 

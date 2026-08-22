@@ -11,9 +11,12 @@ interface Props {
   mode: Mode
   tempoScale: number
   state: PracticeState | null
+  transport: 'stopped' | 'playing' | 'paused'
   onChoose: (id: string | null) => void
   onMode: (mode: Mode) => void
   onTempo: (scale: number) => void
+  onToggle: () => void
+  onStop: () => void
 }
 
 const TEMPOS = [0.5, 0.6, 0.7, 0.8, 0.9, 1]
@@ -41,7 +44,19 @@ function summarise(summary: Summary): string {
   return `${score} — the ${summary.worst.name} ${say(summary.worst)}`
 }
 
-export default function SongPanel({ songs, song, mode, tempoScale, state, onChoose, onMode, onTempo }: Props) {
+export default function SongPanel({
+  songs,
+  song,
+  mode,
+  tempoScale,
+  state,
+  transport,
+  onChoose,
+  onMode,
+  onTempo,
+  onToggle,
+  onStop,
+}: Props) {
   return (
     <aside className={styles.panel}>
       <div className={styles.row}>
@@ -62,6 +77,22 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
         </label>
 
         {song && (
+          <div className={styles.transport} role="group" aria-label="Transport">
+            <button type="button" className={`${styles.play} label`} onClick={onToggle}>
+              {transport === 'playing' ? 'Pause' : transport === 'paused' ? 'Resume' : 'Play'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.mode} label`}
+              onClick={onStop}
+              disabled={transport === 'stopped'}
+            >
+              Stop
+            </button>
+          </div>
+        )}
+
+        {song && (
           <div className={styles.modes} role="group" aria-label="Practice mode">
             <button
               type="button"
@@ -79,7 +110,7 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
               onClick={() => onMode('play')}
               title="In time, with a drum track."
             >
-              Play
+              In time
             </button>
           </div>
         )}

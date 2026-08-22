@@ -30,6 +30,7 @@ export function usePractice(bridge: PracticeBridge) {
   const [mode, setMode] = useState<Mode>('learn')
   const [tempoScale, setTempoScale] = useState(1)
   const [state, setState] = useState<PracticeState | null>(null)
+  const [transport, setTransport] = useState<'stopped' | 'playing' | 'paused'>('stopped')
 
   const sessionRef = useRef<PracticeSession | null>(null)
   const keyRef = useRef(keyIndex)
@@ -46,11 +47,16 @@ export function usePractice(bridge: PracticeBridge) {
       onChange: (next) => {
         setState(next)
         setTarget(next.lane[0] ?? null)
+        // The song reaching its end is a transport change nobody pressed.
+        setTransport(session.transportState)
       },
     })
     sessionRef.current = session
     onCommit((degree, major, at) => session.commit(degree, major, at))
-    session.start()
+    // Deliberately not started here. Playing is something the player does, not
+    // something a render causes — starting inside an effect keyed on six values
+    // meant any of them changing restarted the song underneath them.
+    setTransport('stopped')
 
     return () => {
       onCommit(null)
@@ -58,6 +64,7 @@ export function usePractice(bridge: PracticeBridge) {
       session.dispose()
       sessionRef.current = null
       setState(null)
+      setTransport('stopped')
     }
   }, [song, mode, running, audio, onCommit, setTarget])
 
@@ -70,6 +77,21 @@ export function usePractice(bridge: PracticeBridge) {
   useEffect(() => {
     sessionRef.current?.setTempoScale(tempoScale)
   }, [tempoScale])
+
+  /** Play, hold, or pick up — whichever the current state calls for. */
+  const toggle = useCallback(() => {
+    const session = sessionRef.current
+    if (!session) return
+    session.toggle()
+    setTransport(session.transportState)
+  }, [])
+
+  const stop = useCallback(() => {
+    const session = sessionRef.current
+    if (!session) return
+    session.stop()
+    setTransport('stopped')
+  }, [])
 
   /** Choosing a song chooses its key: it is the key the song is in. */
   const choose = useCallback(
@@ -84,5 +106,17 @@ export function usePractice(bridge: PracticeBridge) {
     [onKeyChange],
   )
 
-  return { songs: SONGS, song, mode, tempoScale, state, choose, setMode, setTempoScale }
+  return {
+    songs: SONGS,
+    song,
+    mode,
+    tempoScale,
+    state,
+    transport,
+    choose,
+    setMode,
+    setTempoScale,
+    toggle,
+    stop,
+  }
 }

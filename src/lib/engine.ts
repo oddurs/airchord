@@ -333,7 +333,10 @@ export class Engine {
       // The colour hand gets a ghost too. It holds one pose for a whole song,
       // which is exactly why a player who is not told about it never finds it.
       if (right && rightFingers) {
-        const reached = target.right.every((up, i) => up === rightFingers[i])
+        // Only what the instrument actually reads can be wrong. The thumb is
+        // not read on this hand, so a player resting with it out must still be
+        // able to satisfy the pose.
+        const reached = target.right.slice(1).every((up, i) => up === rightFingers[i + 1])
         this.overlay.drawGhost(right, target.right, reached)
       }
     }

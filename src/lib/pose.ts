@@ -65,9 +65,9 @@ export function fingersForDegree(degree: number): Fingers {
 }
 
 /** Right-hand pose: voicing in the four fingers, octave in the thumb. */
-export function fingersForVoicing(voicing: number, octaveDown: boolean): Fingers {
+export function fingersForVoicing(voicing: number): Fingers {
   const raised = Math.min(4, Math.max(1, voicing))
-  return [octaveDown, raised >= 1, raised >= 2, raised >= 3, raised >= 4]
+  return [false, raised >= 1, raised >= 2, raised >= 3, raised >= 4]
 }
 
 /**

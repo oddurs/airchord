@@ -93,3 +93,34 @@ test('a committer can be told to trust this frame sooner', () => {
   assert.equal(committer.update('chord', 'chord', 50), null, 'not yet, on the default hold')
   assert.equal(committer.update('chord', 'chord', 50, 45), 'chord', 'but an expected answer commits')
 })
+
+test('holding sustains a commitment without letting anything new land', () => {
+  // Grace exists to carry a chord through a dropped tracking frame. It must not
+  // also authorise a different chord — a stale hand playing something that was
+  // never made is the ghost-input bug.
+  const c = new Committer<string>(100)
+  c.update('E', 'E', 0)
+  c.update('E', 'E', 150)
+  assert.equal(c.hold(), 'E', 'still sounding')
+  assert.equal(c.hold(), 'E', 'and again — holding does not advance anything')
+  assert.equal(c.update('A', 'A', 300), 'E', 'a new candidate still has to earn it')
+})
+
+test('releasing drops the chord immediately, without waiting out a hold', () => {
+  // Hands gone means silence now, not silence in another 100ms.
+  const c = new Committer<string>(100)
+  c.update('E', 'E', 0)
+  c.update('E', 'E', 150)
+  c.release()
+  assert.equal(c.hold(), null)
+  assert.equal(c.current, null)
+})
+
+test('a released committer still needs a full hold before sounding again', () => {
+  const c = new Committer<string>(100)
+  c.update('E', 'E', 0)
+  c.update('E', 'E', 150)
+  c.release()
+  assert.equal(c.update('E', 'E', 160), null, 'no instant re-entry')
+  assert.equal(c.update('E', 'E', 300), 'E')
+})

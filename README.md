@@ -58,8 +58,13 @@ the **sound hand**, which holds root position throughout. The same shapes are dr
 own hands as you play — dashed, with a ring on each finger that has to be up, and a **dial under your
 wrist** showing which way to lean and where you currently are. Each fades as you reach it.
 
-After each bar it tells you what happened: on the beat, late and by how much, or right chord and
-wrong lean. It grades the moment your *hand* arrived, not the moment the sound started — there is
+Songs have sections. The panel tells you which one you are in and how many bars until the next, the
+drums change pattern with it — a chorus is not the verse played louder — and the last bar before a
+change is a fill. The chord you are holding is **struck in rhythm** rather than left to drone, so the
+part you are playing lands on the beat with everything else. The song ends where it ends.
+
+After each chord change it tells you what happened: on the beat, late and by how much, or right chord
+and wrong lean. It grades the moment your *hand* arrived, not the moment the sound started — there is
 about 150 ms between those, and blaming you for it would be dishonest. What that lag means in
 practice is that your hand has to be in position roughly a quarter of a beat before the downbeat.
 
@@ -126,9 +131,10 @@ src/hooks/           the render loop, and the only bridge into React
 src/lib/
   vision.ts          MediaPipe → per-hand features (fingers, roll, tilt, height)
   chords.ts          gesture → notes; scales, degrees, voicings
-  songs.ts           songs as degrees, so any key plays them
-  transport.ts       the beat grid, scheduled on the audio clock
-  drums.ts           a synthesised kit and its patterns
+  songs.ts           songs as degrees and sections, so any key plays them
+  transport.ts       the beat grid and tempo map, on the audio clock
+  groove.ts          patterns, fills and feel, per section
+  drums.ts           a synthesised kit
   pose.ts            the target hand shape, and how to fit it to yours
   practice.ts        the session: target, timing, and honest grading
   synth.ts           Web Audio graph

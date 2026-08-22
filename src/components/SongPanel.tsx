@@ -136,9 +136,11 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
               {Array.from({ length: song.beatsPerBar }, (_, i) => (
                 <span
                   // Re-keyed every beat so the pulse restarts rather than resumes.
-                  key={i === state.beat ? `${state.bar}-${state.beat}` : i}
-                  className={i === state.beat ? styles.beatOn : styles.beat}
-                  style={i === state.beat ? { animationDuration: `${Math.round(state.beatMs)}ms` } : undefined}
+                  key={i === Math.floor(state.beat) ? `${state.bar}-${i}` : i}
+                  className={i === Math.floor(state.beat) ? styles.beatOn : styles.beat}
+                  style={
+                    i === Math.floor(state.beat) ? { animationDuration: `${Math.round(state.beatMs)}ms` } : undefined
+                  }
                 />
               ))}
             </div>

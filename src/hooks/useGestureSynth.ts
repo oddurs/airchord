@@ -58,6 +58,7 @@ export function useGestureSynth() {
   const keyRef = useRef(DEFAULT_KEY)
   const hudRef = useRef<Hud>(IDLE_HUD)
   const frameRef = useRef(0)
+  const cleanupRef = useRef<(() => void) | null>(null)
 
   const [hud, setHud] = useState<Hud>(IDLE_HUD)
   const [keyIndex, setKeyIndex] = useState(DEFAULT_KEY)
@@ -122,6 +123,26 @@ export function useGestureSynth() {
         }
       }
       loop()
+
+      // The exits that are not gestures. Without these the instrument plays on
+      // to a hidden tab or an unplugged camera.
+      const silence = () => engine.silence()
+      const onHidden = () => {
+        if (document.visibilityState === 'hidden') silence()
+      }
+      document.addEventListener('visibilitychange', onHidden)
+      window.addEventListener('pagehide', silence)
+      for (const track of stream.getVideoTracks()) {
+        track.addEventListener('ended', () => {
+          silence()
+          setError('The camera stopped. Reconnect it and reload.')
+          setPhase('error')
+        })
+      }
+      cleanupRef.current = () => {
+        document.removeEventListener('visibilitychange', onHidden)
+        window.removeEventListener('pagehide', silence)
+      }
     } catch (err) {
       // Keep the raw failure in the console; the message on screen is for a
       // player, not for whoever has to debug it.
@@ -144,6 +165,7 @@ export function useGestureSynth() {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(frameRef.current)
+      cleanupRef.current?.()
       engineRef.current?.dispose()
       const stream = videoRef.current?.srcObject
       if (stream instanceof MediaStream) stream.getTracks().forEach((t) => t.stop())

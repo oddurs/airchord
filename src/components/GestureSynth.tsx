@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useGestureSynth } from '@/hooks/useGestureSynth'
+import { useBeat } from '@/hooks/useBeat'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { usePractice } from '@/hooks/usePractice'
 import About from './About'
@@ -36,6 +37,7 @@ export default function GestureSynth() {
   } = useGestureSynth()
   // Shown once, and it owns the screen while it runs: a first instruction
   // competing with a song lane is two things asking to be read at once.
+  const beat = useBeat({ audio, running: phase === 'running', timbre })
   const tour = useOnboarding({ hud, running: phase === 'running', setTarget })
   const practice = usePractice({
     setTarget,
@@ -47,8 +49,11 @@ export default function GestureSynth() {
   })
   // Opt-in via ?capture so the dataset tool never clutters normal play.
   const [capturing, setCapturing] = useState(false)
+  const [songsOpen, setSongsOpen] = useState(false)
   useEffect(() => {
-    setCapturing(new URLSearchParams(window.location.search).has('capture'))
+    const query = new URLSearchParams(window.location.search)
+    setCapturing(query.has('capture'))
+    setSongsOpen(query.has('songs'))
   }, [])
   const [guideOpen, setGuideOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -78,6 +83,10 @@ export default function GestureSynth() {
         onKeyChange={setKeyIndex}
         timbre={timbre}
         onTimbreChange={setTimbre}
+        beat={beat.signature}
+        onBeatChange={beat.setSignature}
+        bpm={beat.bpm}
+        onBpmChange={beat.setBpm}
         guideOpen={guideOpen}
         onToggleGuide={() => setGuideOpen((open) => !open)}
         onOpenAbout={() => setAboutOpen(true)}
@@ -85,7 +94,7 @@ export default function GestureSynth() {
         onToggleLatch={toggleLatch}
       />
       {guideOpen && !capturing && <Guide />}
-      {phase === 'running' && !capturing && !tour.active && (
+      {phase === 'running' && songsOpen && !capturing && !tour.active && (
         <SongPanel
           songs={practice.songs}
           song={practice.song}

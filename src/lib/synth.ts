@@ -57,6 +57,10 @@ export interface SynthGraph {
    *  drum through a 2.4-second convolution is mud, and the limiter is the only
    *  thing protecting the sum of the two. */
   mix: AudioNode
+  /** The way into the same room the chords sit in. A little of the kit through
+   *  here is what makes a backing beat sound like it is in the recording rather
+   *  than next to it — a lot of it is mud, which is why the kit is otherwise dry. */
+  room: AudioNode
   setTimbre(id: TimbreId): void
   setVolume(level: number): void
   setTilt(tilt: number): void
@@ -73,6 +77,8 @@ export interface SynthGraph {
 export interface AudioBridge {
   context: BaseAudioContext
   destination: AudioNode
+  /** The chords' room, for anything that should sound like it is in it. */
+  room: AudioNode
   strike(at: number, velocity: number): void
 }
 
@@ -284,6 +290,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
 
   return {
     mix: dcBlock,
+    room: preDelay,
 
     setTimbre(id) {
       timbre = timbreById(id)
@@ -414,6 +421,7 @@ export class Synth {
     return {
       context: this.ctx,
       destination: graph.mix,
+      room: graph.room,
       strike: (at, velocity) => graph.strike(at, velocity),
     }
   }

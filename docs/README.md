@@ -16,6 +16,7 @@ shape it. This is an independent reimplementation of **Gesture Synth**.
 | [09-delight-plan.md](./09-delight-plan.md) | Four voices, and the first sixty seconds |
 | [10-songs-plan.md](./10-songs-plan.md) | Play-along songs and tutorials: transport, drums, chord lane, ghost hands |
 | [11-playalong-plan.md](./11-playalong-plan.md) | Making the play-along authentic: arrangement, groove, MIDI import, lyrics |
+| [12-backing-beat.md](./12-backing-beat.md) | A loop to play along to, voiced by the instrument — and the tutorials put away |
 
 
 ## Attribution and licence

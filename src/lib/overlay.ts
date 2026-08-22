@@ -163,6 +163,8 @@ export class Overlay {
 
   /** Draws the shared energy wave in the band the HUD keeps clear for it. */
   drawWave(spec: Omit<WaveSpec, 'centreY' | 'scale'>): void {
-    paintWave(this.ctx, { ...spec, centreY: this.height - 56 * this.scale, scale: this.scale })
+    // Sits high enough that a full-amplitude waveform is not clipped by the
+    // bottom of the frame, and still below the band the chord lockup occupies.
+    paintWave(this.ctx, { ...spec, centreY: this.height - 96 * this.scale, scale: this.scale })
   }
 }

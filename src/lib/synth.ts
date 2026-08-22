@@ -140,7 +140,7 @@ class Voice {
    * pitch. A silent voice stays silent — a strike shapes what is sounding, it
    * does not start anything.
    */
-  strike(at: number, velocity: number): void {
+  strike(at: number, velocity: number, delay: number): void {
     if (this.freq === null) return
     const peak = this.level * (STRIKE_FLOOR + STRIKE_RANGE * velocity)
     for (const gain of this.gains) {
@@ -149,8 +149,8 @@ class Voice {
       gain.gain.cancelScheduledValues(at - STRIKE_DUCK)
       gain.gain.setValueAtTime(this.level, at - STRIKE_DUCK)
       gain.gain.linearRampToValueAtTime(this.level * STRIKE_DEPTH, at)
-      gain.gain.linearRampToValueAtTime(peak, at + STRIKE_ATTACK)
-      gain.gain.linearRampToValueAtTime(this.level, at + STRIKE_ATTACK + STRIKE_SETTLE)
+      gain.gain.linearRampToValueAtTime(peak, at + delay + STRIKE_ATTACK)
+      gain.gain.linearRampToValueAtTime(this.level, at + delay + STRIKE_ATTACK + STRIKE_SETTLE)
     }
   }
 
@@ -312,10 +312,23 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       updateFilter()
     },
 
-    /** Low to high, because that is which way a hand crosses the strings. */
+    /**
+     * Every voice ducks together and they attack low to high — which is what a
+     * hand crossing strings actually does, and the only version of this that is
+     * audible: staggering the duck as well leaves three voices covering for the
+     * one that is quiet, and the chord never stops.
+     */
     strike(at, velocity) {
       const sounding = voices.filter((v) => v.busy).sort((a, b) => (a.freq ?? 0) - (b.freq ?? 0))
-      sounding.forEach((voice, i) => voice.strike(at + i * STRUM_SPREAD, velocity))
+      sounding.forEach((voice, i) => voice.strike(at, velocity, i * STRUM_SPREAD))
+
+      // The sub is part of the chord's body; leaving it up fills the gap the
+      // strike just made.
+      const subLevel = level * SUB_LEVEL * UNISON
+      subGain.gain.cancelScheduledValues(at - STRIKE_DUCK)
+      subGain.gain.setValueAtTime(subLevel, at - STRIKE_DUCK)
+      subGain.gain.linearRampToValueAtTime(subLevel * STRIKE_DEPTH, at)
+      subGain.gain.linearRampToValueAtTime(subLevel, at + STRIKE_ATTACK + STRIKE_SETTLE)
     },
 
     stop() {

@@ -225,7 +225,6 @@ export class Engine {
       this.synth.stop()
     }
 
-    const voices = rightFingers ? rightFingers.slice(1).filter(Boolean).length : 0
     this.overlay.drawFrame(video)
     this.overlay.drawHands(hands)
     if (this.target) {
@@ -242,7 +241,14 @@ export class Engine {
       }
     }
     if (chord) {
-      this.overlay.drawWave({ degree: chord.degree, major: chord.major, voices, volume, tilt, now })
+      this.overlay.drawWave({
+        freqs: chord.freqs,
+        degree: chord.degree,
+        major: chord.major,
+        volume,
+        tilt,
+        now,
+      })
     }
 
     if (process.env.NODE_ENV !== 'production') {

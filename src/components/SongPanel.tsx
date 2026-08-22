@@ -36,7 +36,7 @@ function say(result: Result): string {
 }
 
 function summarise(summary: Summary): string {
-  const score = `${summary.hits} of ${summary.bars}`
+  const score = `${summary.section} · ${summary.hits} of ${summary.changes}`
   if (!summary.worst) return score
   return `${score} — the ${summary.worst.name} ${say(summary.worst)}`
 }
@@ -104,6 +104,19 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
 
       {song && state && (
         <>
+          {/* Where you are in the arrangement. A song has sections, and knowing
+              the chorus is two bars away is most of playing one. */}
+          {state.section && (
+            <p className={`${styles.where} label`}>
+              <span className={styles.section}>{state.section}</span>
+              {state.nextSection && state.barsToNextSection !== null && (
+                <span className={styles.ahead}>
+                  {state.nextSection} in {state.barsToNextSection}
+                </span>
+              )}
+            </p>
+          )}
+
           <ol className={styles.lane}>
             {state.lane.map((target, i) => (
               <li key={`${target.bar}-${i}`} className={i === 0 ? styles.now : styles.next}>
@@ -151,7 +164,14 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
           </div>
 
           <p className={styles.feedback} aria-live="polite">
-            {state.countIn ? (
+            {state.done ? (
+              <>
+                <span className={styles.resultName}>Finished</span>
+                <span className={styles.resultSaid}>
+                  {state.total.hits} of {state.total.changes} changes on the beat
+                </span>
+              </>
+            ) : state.countIn ? (
               <span className="label">Count in</span>
             ) : state.result ? (
               <>
@@ -163,7 +183,7 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
             )}
           </p>
 
-          {state.summary && mode === 'play' && (
+          {state.summary && mode === 'play' && !state.done && (
             <p className={`${styles.summary} label`}>{summarise(state.summary)}</p>
           )}
         </>

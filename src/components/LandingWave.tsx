@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { KEYS, buildChord } from '@/lib/chords'
 import { paintWave } from '@/lib/wave'
 import styles from './LandingWave.module.css'
 
@@ -16,6 +17,11 @@ const FADE = 1.4
  * It also carries through the loading state, which is what keeps starting up
  * from feeling like a splash screen followed by a spinner.
  */
+const KEY = KEYS.find((key) => key.name === 'E') ?? KEYS[0]
+
+/** Positive modulo. `-1 % 4` is -1 in JavaScript, which indexes nothing. */
+const wrap = (value: number, size: number) => ((value % size) + size) % size
+
 export default function LandingWave() {
   const ref = useRef<HTMLCanvasElement>(null)
 
@@ -59,13 +65,18 @@ export default function LandingWave() {
         now,
       }
 
-      const at = (n: number) => ({
-        degree: ((((index + n) % 7) + 7) % 7) + 1,
-        major: (index + n) % 3 !== 2,
-        // Two or three lines: enough to show the voicing dimension, few enough
-        // to stay a single gesture rather than a bundle.
-        voices: ((index + n) % 2) + 2,
-      })
+      // Real chords, built the way the instrument builds them, so the landing
+      // page draws genuine interference patterns rather than plausible ones.
+      // Every index here can go negative on the outgoing chord, and JavaScript's
+      // `%` keeps the sign — so they all wrap explicitly.
+      const at = (n: number) => {
+        const step = index + n
+        const degree = wrap(step, 7) + 1
+        const major = wrap(step, 3) !== 2
+        const voicing = wrap(step, 4) + 1
+        const chord = buildChord(KEY, { degree, major, voicing, octaveDown: false })
+        return { degree, major, freqs: chord?.freqs ?? [] }
+      }
 
       if (blend < 1) paintWave(ctx, { ...shared, ...at(-1), alpha: 1 - blend })
       paintWave(ctx, { ...shared, ...at(0), alpha: blend })

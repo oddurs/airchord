@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { KEYS } from '@/lib/chords'
 import type { Engine } from '@/lib/engine'
 import type { PoseTarget } from '@/lib/pose'
+import type { AudioBridge } from '@/lib/synth'
 import { PracticeSession, type Mode, type PracticeState } from '@/lib/practice'
 import { SONGS, songById, type Song } from '@/lib/songs'
 
 export interface PracticeBridge {
   setTarget: (target: PoseTarget | null) => void
   onCommit: (listener: Engine['onCommit']) => void
-  audio: () => { context: BaseAudioContext; destination: AudioNode } | null
+  audio: () => AudioBridge | null
   /** The instrument is running: there is a camera, a clock and an output. */
   running: boolean
   keyIndex: number

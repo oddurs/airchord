@@ -199,6 +199,31 @@ export function arrange(song: Song): Placed[] {
   return placed
 }
 
+/**
+ * Each section's bars once, repeats collapsed. What Learn mode walks: there is
+ * nothing to learn from playing the same four bars twenty-four times, and
+ * sections that share a bar list share it by reference, so a song whose chorus
+ * really is different still teaches both.
+ */
+export function loopOf(song: Song): Placed[] {
+  const seen = new Set<Bar[]>()
+  const placed: Placed[] = []
+  for (const section of song.sections) {
+    if (seen.has(section.bars)) continue
+    seen.add(section.bars)
+    section.bars.forEach((bars, n) => {
+      placed.push({
+        bar: bars,
+        index: placed.length,
+        section,
+        barInSection: n,
+        lastOfSection: n === section.bars.length - 1,
+      })
+    })
+  }
+  return placed
+}
+
 export function songById(id: string): Song | null {
   return SONGS.find((s) => s.id === id) ?? null
 }

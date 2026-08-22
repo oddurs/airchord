@@ -47,13 +47,42 @@ silence. Without that, noise becomes music.
   makes the classifier testable at all.
 - **Node runs the tests directly** with type stripping, so imports inside `src/lib` need explicit
   `.ts` extensions and no TypeScript parameter properties.
+- **Docs are numbered in `docs/`.** Look before you name one: two sessions have already claimed the
+  same number twice. The number is claimed by the file existing, not by the plan intending it.
 
 ## Working alongside another agent
 
-`engine.ts`, `GestureSynth.tsx`, `useGestureSynth.ts` and `chords.ts` are the integration points and
-the guaranteed conflicts. Changes to them go in small, fast, separately-merged commits. Everything
-else splits by module: instrument core (`features`, `classifier`, `synth`, `overlay`) versus practice
-mode (`songs`, `drums`, `transport`, `pose`, `practice`).
+Two sessions share this repo. They do **not** share a working tree — that cost us a broken typecheck
+and a file edited from both sides at once. Each session takes a **lane**: one task, one branch, one
+worktree, one PR. `main` is never worked in; it is only merged into.
+
+```fish
+npm run lane <task>       # a worktree at ../airchord-wt/<task>, branched from origin/main
+npm run lanes             # what every lane is doing: ahead, behind, uncommitted, open PR
+npm run land              # rebase on main, verify, push, open the PR, squash-merge when CI is green
+npm run lane:done <task>  # after it merges: remove the worktree and the branch
+```
+
+`node_modules` and `public/mediapipe` are symlinked into each lane, so a lane costs no install and no
+41 MB re-download. Open one and work in it; `cd` back only to read.
+
+Four things happen without being asked — `.claude/settings.json` and `.githooks/pre-commit`:
+
+- **The main checkout is read-only.** Commits and pushes on `main` are refused, by a Claude Code hook
+  and by a git hook for everything that is not Claude Code. `ALLOW_MAIN=1` overrides it deliberately.
+- **Every turn ends committed.** A lane with uncommitted work is checkpointed as
+  `wip: <branch> <time>`, so nothing is lost to a crash, a compaction or the other session.
+- **Force-pushing is refused** unless it is `--force-with-lease`.
+- **Contended files say so as they are edited**, because the cost of one is a conflict for both.
+
+Those files are `engine.ts`, `synth.ts`, `chords.ts`, `GestureSynth.tsx` and `useGestureSynth.ts`:
+everything routes through them. Changes to them go in small, fast, separately-landed PRs — a
+long-lived branch touching one is the conflict everybody pays for. Everything else splits by module:
+instrument core (`features`, `classifier`, `synth`, `overlay`) versus practice mode (`songs`,
+`drums`, `transport`, `pose`, `practice`).
+
+Before starting anything, `npm run lanes`. Before landing anything, read what the other lane has
+already merged.
 
 ## Attribution
 

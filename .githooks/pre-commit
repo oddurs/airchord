@@ -1,0 +1,14 @@
+#!/bin/sh
+# One branch, one worktree, one PR — and main is only ever merged into.
+# This is the backstop: it holds whatever tool is doing the committing.
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ "$branch" = "main" ] && [ "$ALLOW_MAIN" != "1" ]; then
+  echo "" >&2
+  echo "  Refusing to commit on main." >&2
+  echo "  Open a lane instead:  npm run lane <task>" >&2
+  echo "  Land it with:         npm run land" >&2
+  echo "" >&2
+  echo "  (ALLOW_MAIN=1 git commit … if you really mean it.)" >&2
+  echo "" >&2
+  exit 1
+fi

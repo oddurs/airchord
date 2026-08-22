@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 
 # Build output
 .next/
@@ -8,7 +8,7 @@ next-env.d.ts
 *.tsbuildinfo
 
 # Generated locally and in CI by `npm run assets` — 41MB of vendored runtime.
-public/mediapipe/
+public/mediapipe
 
 # Local development certificates; never shared.
 certs/

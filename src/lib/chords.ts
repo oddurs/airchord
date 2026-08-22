@@ -37,6 +37,12 @@ const DEGREE_SEMITONES = [0, 2, 4, 5, 7, 9, -1]
 
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
 
+/** A scale step as a numeral, cased by quality. Exported so a song can print
+ *  its degrees against its own tonic rather than against the key's. */
+export function numeralAt(step: number, major: boolean): string {
+  return major ? NUMERALS[step] : NUMERALS[step].toLowerCase()
+}
+
 /**
  * Four voices, always. Root position is deliberately spread — it drops the close
  * third and doubles at the octave, which is most of why the instrument sounds
@@ -140,7 +146,7 @@ export function buildChord(key: Key, g: Gesture): Chord | null {
 
   return {
     name: key.degrees[step] + (g.major ? '' : 'm'),
-    numeral: g.major ? NUMERALS[step] : NUMERALS[step].toLowerCase(),
+    numeral: numeralAt(step, g.major),
     quality: g.major ? majorName : minorName,
     octaveDown: g.octaveDown,
     degree: g.degree,

@@ -23,6 +23,20 @@ const OUTWARD_Q = 4.5
 const KEY_TRACK = 0.35
 const REFERENCE_HZ = 220
 
+/**
+ * Articulation. A chord that is merely held is a drone; a play-along needs it to
+ * land *on* the beat. A strike ducks into the hit and attacks out of it, and the
+ * voices are offset low to high so it reads as a strum rather than a stab.
+ */
+const STRIKE_DUCK = 0.016
+const STRIKE_DEPTH = 0.22
+const STRIKE_ATTACK = 0.008
+const STRIKE_SETTLE = 0.09
+const STRUM_SPREAD = 0.011
+/** Accents overshoot the held level a little; soft strikes sit under it. */
+const STRIKE_FLOOR = 0.6
+const STRIKE_RANGE = 0.45
+
 const GAIN_GLIDE = 0.03
 const FILTER_GLIDE = 0.04
 
@@ -58,7 +72,19 @@ export interface SynthGraph {
   setVolume(level: number): void
   setTilt(tilt: number): void
   play(freqs: number[]): void
+  /** Re-articulates whatever is already sounding, at a scheduled time. */
+  strike(at: number, velocity: number): void
   stop(): void
+}
+
+/**
+ * What a backing track needs from the instrument: its clock, the bus that shares
+ * its limiter, and a way to re-articulate the chord the player is holding.
+ */
+export interface AudioBridge {
+  context: BaseAudioContext
+  destination: AudioNode
+  strike(at: number, velocity: number): void
 }
 
 /**
@@ -106,6 +132,25 @@ class Voice {
       gain.gain.cancelScheduledValues(at)
       gain.gain.setValueAtTime(gain.gain.value, at)
       gain.gain.linearRampToValueAtTime(this.level, at + FADE)
+    }
+  }
+
+  /**
+   * Re-articulate: duck, hit, settle back to the held level, without touching
+   * pitch. A silent voice stays silent — a strike shapes what is sounding, it
+   * does not start anything.
+   */
+  strike(at: number, velocity: number): void {
+    if (this.freq === null) return
+    const peak = this.level * (STRIKE_FLOOR + STRIKE_RANGE * velocity)
+    for (const gain of this.gains) {
+      // Anchored before the duck: a ramp with no recent event interpolates from
+      // wherever the last one was, which would start the fall minutes early.
+      gain.gain.cancelScheduledValues(at - STRIKE_DUCK)
+      gain.gain.setValueAtTime(this.level, at - STRIKE_DUCK)
+      gain.gain.linearRampToValueAtTime(this.level * STRIKE_DEPTH, at)
+      gain.gain.linearRampToValueAtTime(peak, at + STRIKE_ATTACK)
+      gain.gain.linearRampToValueAtTime(this.level, at + STRIKE_ATTACK + STRIKE_SETTLE)
     }
   }
 
@@ -267,6 +312,12 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       updateFilter()
     },
 
+    /** Low to high, because that is which way a hand crosses the strings. */
+    strike(at, velocity) {
+      const sounding = voices.filter((v) => v.busy).sort((a, b) => (a.freq ?? 0) - (b.freq ?? 0))
+      sounding.forEach((voice, i) => voice.strike(at + i * STRUM_SPREAD, velocity))
+    },
+
     stop() {
       const now = ctx.currentTime
       for (const voice of voices) voice.release(now)
@@ -327,10 +378,15 @@ export class Synth {
     await this.ctx.resume()
   }
 
-  /** The context and the bus anything else must share to be limited alongside
-   *  the instrument rather than against it. Null until the player has started. */
-  get audio(): { context: AudioContext; destination: AudioNode } | null {
-    return this.ctx && this.graph ? { context: this.ctx, destination: this.graph.mix } : null
+  /** Null until the player has started. */
+  get audio(): AudioBridge | null {
+    if (!this.ctx || !this.graph) return null
+    const graph = this.graph
+    return {
+      context: this.ctx,
+      destination: graph.mix,
+      strike: (at, velocity) => graph.strike(at, velocity),
+    }
   }
 
   /** Output latency in ms, for the latency budget. */

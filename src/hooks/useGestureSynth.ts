@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createTracker, readHands } from '@/lib/vision'
+import { createTracker, loadModel, readHands } from '@/lib/vision'
 import { KEYS } from '@/lib/chords'
 import { Engine, IDLE_HUD, hudEqual, type Hud } from '@/lib/engine'
 import type { PoseTarget } from '@/lib/pose'
@@ -10,6 +10,16 @@ import type { Wave } from '@/lib/synth'
 const DEFAULT_KEY = KEYS.findIndex((k) => k.name === 'E')
 
 export type Phase = 'idle' | 'loading' | 'running' | 'error'
+
+/** What the instrument is doing while it starts, in the order it happens. */
+export type Stage = 'audio' | 'camera' | 'model' | 'tracker'
+
+export const STAGE_LABEL: Record<Stage, string> = {
+  audio: 'Waking the synth',
+  camera: 'Asking for the camera',
+  model: 'Downloading the hand model',
+  tracker: 'Starting hand tracking',
+}
 
 /**
  * Camera failures are the most likely thing to go wrong and the least
@@ -52,6 +62,8 @@ export function useGestureSynth() {
   const [hud, setHud] = useState<Hud>(IDLE_HUD)
   const [keyIndex, setKeyIndex] = useState(DEFAULT_KEY)
   const [phase, setPhase] = useState<Phase>('idle')
+  const [stage, setStage] = useState<Stage>('audio')
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -66,9 +78,12 @@ export function useGestureSynth() {
     setPhase('loading')
     let stream: MediaStream | undefined
     try {
+      setStage('audio')
       const engine = new Engine(canvas)
       engineRef.current = engine
       await engine.start()
+
+      setStage('camera')
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera access needs https. See the README for local certificates.')
@@ -83,7 +98,11 @@ export function useGestureSynth() {
       video.srcObject = stream
       await video.play()
 
-      const tracker = await createTracker()
+      setStage('model')
+      const model = await loadModel(setProgress)
+
+      setStage('tracker')
+      const tracker = await createTracker(model)
       setPhase('running')
 
       let lastTime = -1
@@ -164,6 +183,8 @@ export function useGestureSynth() {
     setKeyIndex,
     setWave,
     start,
+    stage,
+    progress,
     toggleLatch,
     observe,
     setTarget,

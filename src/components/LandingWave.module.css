@@ -1,0 +1,13 @@
+.wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Sits below the type and above the ground, filling the lower third. */
+  bottom: 3vh;
+  height: 34vh;
+  width: 100%;
+  pointer-events: none;
+  /* Fades out at both edges so it reads as ambient rather than as a chart. */
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}

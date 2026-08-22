@@ -20,10 +20,48 @@ const MODEL = `${BASE}/mediapipe/hand_landmarker.task`
 // and confirmed against the original, which uses the reported label unswapped.
 const SWAP_HANDEDNESS = false
 
-export async function createTracker(): Promise<HandLandmarker> {
+/**
+ * Fetches the hand-landmark model, reporting progress as it streams.
+ *
+ * MediaPipe will happily fetch it itself from `modelAssetPath`, but gives no
+ * way to observe it — and it is 7.8MB, which on a first visit is long enough
+ * that a silent wait reads as a broken page. Streaming it here and handing over
+ * the bytes buys an honest progress bar for a few lines.
+ */
+export async function loadModel(onProgress: (fraction: number) => void): Promise<Uint8Array> {
+  const response = await fetch(MODEL)
+  if (!response.ok) throw new Error(`Could not load the hand model (${response.status})`)
+
+  const total = Number(response.headers.get('content-length') ?? 0)
+  const reader = response.body?.getReader()
+  if (!reader) return new Uint8Array(await response.arrayBuffer())
+
+  const chunks: Uint8Array[] = []
+  let received = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    received += value.length
+    // Without a content-length there is nothing honest to report, so the bar
+    // stays indeterminate rather than inventing a number.
+    if (total > 0) onProgress(Math.min(1, received / total))
+  }
+
+  const model = new Uint8Array(received)
+  let offset = 0
+  for (const chunk of chunks) {
+    model.set(chunk, offset)
+    offset += chunk.length
+  }
+  onProgress(1)
+  return model
+}
+
+export async function createTracker(model: Uint8Array): Promise<HandLandmarker> {
   const fileset = await FilesetResolver.forVisionTasks(WASM_ROOT)
   return HandLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' },
+    baseOptions: { modelAssetBuffer: model, delegate: 'GPU' },
     runningMode: 'VIDEO',
     numHands: 2,
   })

@@ -7,6 +7,7 @@ import About from './About'
 import CapturePanel from './CapturePanel'
 import Controls from './Controls'
 import Guide from './Guide'
+import Landing from './Landing'
 import Hud from './Hud'
 import SongPanel from './SongPanel'
 import styles from './GestureSynth.module.css'
@@ -17,6 +18,8 @@ export default function GestureSynth() {
     canvasRef,
     hud,
     phase,
+    stage,
+    progress,
     error,
     keyIndex,
     setKeyIndex,
@@ -93,16 +96,10 @@ export default function GestureSynth() {
       {phase === 'running' && hud.hands === 0 && (
         <p className={`${styles.hint} label`}>Hold both hands up to the camera</p>
       )}
-      {phase === 'loading' && <p className={`${styles.status} label`}>Loading hand tracking</p>}
       {phase === 'error' && <p className={styles.status}>{error}</p>}
 
-      {phase === 'idle' && (
-        <button type="button" className={styles.startOverlay} onClick={start}>
-          <span className={styles.startTitle}>Airchord</span>
-          <span className={styles.startStandfirst}>A chord synthesiser you play with your hands.</span>
-          <span className={`${styles.startAction} label`}>Begin</span>
-          <span className={styles.startNote}>Needs your camera · nothing leaves this device</span>
-        </button>
+      {(phase === 'idle' || phase === 'loading') && (
+        <Landing phase={phase} stage={stage} progress={progress} onStart={start} />
       )}
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}

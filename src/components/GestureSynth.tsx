@@ -95,6 +95,9 @@ export default function GestureSynth() {
           onChoose={practice.choose}
           onMode={practice.setMode}
           onTempo={practice.setTempoScale}
+          transport={practice.transport}
+          onToggle={practice.toggle}
+          onStop={practice.stop}
         />
       )}
       {capturing && phase === 'running' && <CapturePanel observe={observe} />}

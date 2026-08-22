@@ -258,3 +258,28 @@
     width: min(92vw, 420px);
   }
 }
+
+.transport {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* The primary action on the panel, so it reads as one rather than as a third
+   equal option next to the practice modes. */
+.play {
+  flex: 1;
+  padding: 7px 0;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-full);
+  font: inherit;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.play:hover { border-color: var(--ink-full); }

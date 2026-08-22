@@ -111,6 +111,12 @@ export class Timeline {
     const beat = this.beatAt(at)
     this.scale = scale
     this.build()
+    this.reanchor(beat, at)
+  }
+
+  /** Slides the whole timeline so `beat` lands at `at`, tempo untouched. This is
+   *  the one notion of position: resuming from a pause is the same operation. */
+  reanchor(beat: number, at: number): void {
     this.origin = at - this.rawTimeOf(beat)
   }
 
@@ -153,6 +159,8 @@ export interface TransportOptions {
   onBeat: (beat: Beat, time: number) => void
   /** Called once, with the time the last bar runs out. */
   onEnd?: (time: number) => void
+  /** Called when position is held, so queued audio can be cancelled. */
+  onPause?: (time: number) => void
   /** How far ahead to schedule. Long enough to survive a stalled timer. */
   lookaheadSec?: number
   /** How often to look. Short enough that the lookahead is never exhausted. */
@@ -170,6 +178,8 @@ export class Transport {
   private timer: ReturnType<typeof setInterval> | null = null
   private next = 0
   private ended = false
+  /** The beat we were sitting on when held, so resuming re-anchors to it. */
+  private pausedBeat: number | null = null
   private readonly lookahead: number
   private readonly tickMs: number
 
@@ -186,19 +196,70 @@ export class Transport {
     return this.timer !== null
   }
 
+  get paused(): boolean {
+    return this.pausedBeat !== null
+  }
+
+  /** Stopped, playing or paused — three states, because pausing is not stopping. */
+  get state(): 'stopped' | 'playing' | 'paused' {
+    if (this.timer) return 'playing'
+    return this.pausedBeat === null ? 'stopped' : 'paused'
+  }
+
   start(): void {
     if (this.timer) return
     this.timeline.start(this.options.clock() + LEAD_IN_SEC)
     this.next = 0
     this.ended = false
-    this.timer = setInterval(() => this.tick(), this.tickMs)
-    this.tick()
+    this.pausedBeat = null
+    this.run()
   }
 
-  stop(): void {
+  /**
+   * Holds position. Beats already handed to the scheduler inside the lookahead
+   * window are rewound so resuming neither skips nor double-books them, and the
+   * consumer is told so it can cancel whatever it has already queued.
+   */
+  pause(): void {
     if (!this.timer) return
     clearInterval(this.timer)
     this.timer = null
+
+    const at = this.options.clock()
+    this.pausedBeat = Math.max(0, this.timeline.beatAt(at))
+
+    // Beats already handed out inside the lookahead are rewound, so resuming
+    // neither skips them nor books them twice.
+    while (this.next > 0 && this.timeline.timeOf(this.next - 1) > at) this.next--
+    this.ended = false
+    this.options.onPause?.(at)
+  }
+
+  /** Picks up where it left off: the held beat is re-anchored to now. */
+  resume(): void {
+    if (this.timer || this.pausedBeat === null) return
+    this.timeline.reanchor(this.pausedBeat, this.options.clock() + LEAD_IN_SEC)
+    this.pausedBeat = null
+    this.run()
+  }
+
+  toggle(): void {
+    if (this.timer) this.pause()
+    else if (this.pausedBeat !== null) this.resume()
+    else this.start()
+  }
+
+  stop(): void {
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+    this.pausedBeat = null
+    this.next = 0
+    this.ended = false
+  }
+
+  private run(): void {
+    this.timer = setInterval(() => this.tick(), this.tickMs)
+    this.tick()
   }
 
   /** Schedules every beat that has come into view. Idempotent per beat. */

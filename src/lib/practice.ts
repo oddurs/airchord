@@ -211,13 +211,52 @@ export class PracticeSession {
     this.publish()
   }
 
+  /**
+   * Holds position. Pending timers are cleared for the same reason `stop` clears
+   * them: they carry display updates and judgements scheduled against wall time,
+   * and left alone they fire during the pause and grade bars that never played.
+   *
+   * The bar in flight is dropped rather than graded. Its window is wall-clock
+   * milliseconds, so a pause through the middle of it makes the judgement
+   * meaningless — and a bar interrupted by a pause is not one the player missed.
+   */
+  pause(): void {
+    if (this.transport?.state !== 'playing') return
+    this.transport.pause()
+    this.clearPending()
+    this.bar = -1
+    this.publish()
+  }
+
+  resume(): void {
+    if (this.transport?.state !== 'paused') return
+    this.transport.resume()
+    this.publish()
+  }
+
+  /** Play, hold, or pick up — whichever the current state calls for. */
+  toggle(): void {
+    if (!this.transport) this.start()
+    else if (this.transport.state === 'playing') this.pause()
+    else if (this.transport.state === 'paused') this.resume()
+    else this.start()
+  }
+
+  get transportState(): 'stopped' | 'playing' | 'paused' {
+    return this.transport?.state ?? 'stopped'
+  }
+
+  private clearPending(): void {
+    for (const timer of this.pending) clearTimeout(timer)
+    this.pending = []
+  }
+
   stop(): void {
     this.transport?.stop()
     this.transport = null
     this.kit?.dispose()
     this.kit = null
-    for (const timer of this.pending) clearTimeout(timer)
-    this.pending = []
+    this.clearPending()
     this.bar = -1
     this.countIn = true
     this.publish()

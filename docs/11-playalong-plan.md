@@ -1,6 +1,6 @@
 # Play-along: from a chord chart to a song
 
-[The songs plan](./07-songs-plan.md) built the scaffolding — a clock, a kit, a lane, two ghost hands,
+[The songs plan](./10-songs-plan.md) built the scaffolding — a clock, a kit, a lane, two ghost hands,
 honest grading. What it produced is a **chord chart with a metronome**. That is the right MVP and it
 is not a play-along: nothing about it says *Creep* rather than *four bars in G*.
 

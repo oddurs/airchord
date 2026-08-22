@@ -66,9 +66,13 @@ moves more than its subject is a check nobody can act on, and "measure, then cha
 something this project can actually do.
 
 The impulse response and the drum noise buffer are now filled from a seeded generator. Noise is
-noise; the instrument cannot tell, and the report is now identical run to run. Only `worst peak`
-still moves, by about 0.009, because each drum hit starts at a random offset into the noise so
-repeated hats do not phase into a tone — that one is deliberate, and it has 0.13 of headroom.
+noise; the instrument cannot tell, and the report is now identical run to run on one machine. Two
+residual differences are known and neither is the dice: `worst peak` moves by about 0.009, because
+each drum hit starts at a random offset into the noise so repeated hats do not phase into a tone;
+and the two voices built on `sawtooth` and `square` still read a little differently on the CI runner
+than locally — 0.347 against 0.284 for nylon — which is Chrome's band-limited oscillator tables
+differing by platform, not anything this project controls. Both sit well inside their ceilings, and
+the ceilings are set wide enough to say so.
 
 The failure also said something true about the sound. Glass ducked to 0.55, which the measurement
 could not tell apart from not ducking at all — and neither could a listener. It ducks to 0.40 now.

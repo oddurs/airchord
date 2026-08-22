@@ -1,13 +1,11 @@
-export type Wave = 'triangle' | 'sawtooth' | 'square'
+import { seeded } from './noise.ts'
+import { DEFAULT_TIMBRE, timbreById, type Timbre, type TimbreId } from './timbre.ts'
 
 /** Enough voices for a four-note chord plus the four it is replacing. */
 const POOL = 8
 /** Oscillators per pitch. Detuning near-unison voices is most of "pad". */
 const UNISON = 3
-const DETUNE_CENTS = 7
 const PAN_SPREAD = 0.55
-/** Long enough to hide the transition, short enough not to read as articulation. */
-const FADE = 0.014
 /**
  * When a change keeps no common tones — an octave jump moves every voice — the
  * seam is far wider and a 14ms crossfade reads as a lurch. Longer here is not
@@ -15,30 +13,19 @@ const FADE = 0.014
  */
 const REVOICE_FADE = 0.09
 
-/** Slow, shallow, mutually prime: a held chord breathes instead of sitting still. */
+/** Slow, shallow, mutually prime: a held chord breathes instead of sitting still.
+ *  How far it drifts is the voice's business; how it drifts is the instrument's. */
 const DRIFT_RATES = [0.07, 0.11, 0.13]
-const DRIFT_CENTS = 3.5
 
-const CENTRE_HZ = 1200
-const CENTRE_Q = 0.7
-const INWARD_HZ = 950
-const INWARD_Q = 1.5
-const OUTWARD_HZ = 3800
-const OUTWARD_Q = 4.5
-/** Cutoff follows the chord root, so high voicings don't go dull. */
-const KEY_TRACK = 0.35
 const REFERENCE_HZ = 220
+/** Shared by every voice: swapping a convolver's buffer mid-note clicks, and wet
+ *  plus pre-delay carry most of the difference between one room and another. */
 
 /**
  * Articulation. A chord that is merely held is a drone; a play-along needs it to
  * land *on* the beat. A strike ducks into the hit and attacks out of it, and the
  * voices are offset low to high so it reads as a strum rather than a stab.
  */
-const STRIKE_DUCK = 0.016
-const STRIKE_DEPTH = 0.22
-const STRIKE_ATTACK = 0.008
-const STRIKE_SETTLE = 0.09
-const STRUM_SPREAD = 0.011
 /** Accents overshoot the held level a little; soft strikes sit under it. */
 const STRIKE_FLOOR = 0.6
 const STRIKE_RANGE = 0.45
@@ -55,11 +42,7 @@ const FILTER_GLIDE = 0.04
 const VOICE_EXPONENT = 0.75
 const HEADROOM = 0.62
 
-const SUB_LEVEL = 0.22
-const DRIVE = 1.6
 const REVERB_SECONDS = 2.4
-const REVERB_WET = 0.22
-const PRE_DELAY = 0.025
 
 /** One stereo position, shared by the unison members that sit at it. */
 interface Bus {
@@ -74,7 +57,7 @@ export interface SynthGraph {
    *  drum through a 2.4-second convolution is mud, and the limiter is the only
    *  thing protecting the sum of the two. */
   mix: AudioNode
-  setWave(wave: Wave): void
+  setTimbre(id: TimbreId): void
   setVolume(level: number): void
   setTilt(tilt: number): void
   play(freqs: number[]): void
@@ -108,8 +91,6 @@ class Voice {
     for (let u = 0; u < UNISON; u++) {
       const osc = ctx.createOscillator()
       osc.type = 'triangle'
-      // Spread across the unison: outer members detuned, centre left true.
-      osc.detune.value = (u - (UNISON - 1) / 2) * DETUNE_CENTS
       const gain = ctx.createGain()
       gain.gain.value = 0
       osc.connect(gain).connect(buses[u].input)
@@ -126,12 +107,16 @@ class Voice {
     return this.freq !== null
   }
 
-  setWave(wave: Wave): void {
-    for (const osc of this.oscillators) osc.type = wave
+  /** Waveform and unison spread: outer members detuned, centre left true. */
+  setTone(wave: OscillatorType, detuneCents: number): void {
+    this.oscillators.forEach((osc, u) => {
+      osc.type = wave
+      osc.detune.value = (u - (UNISON - 1) / 2) * detuneCents
+    })
   }
 
   /** Retunes while silent, then fades in — so the pitch change itself is inaudible. */
-  attack(freq: number, at: number, fade = FADE): void {
+  attack(freq: number, at: number, fade: number): void {
     this.freq = freq
     for (const osc of this.oscillators) osc.frequency.setValueAtTime(freq, at)
     this.ramp(this.level, at, fade)
@@ -142,21 +127,21 @@ class Voice {
    * pitch. A silent voice stays silent — a strike shapes what is sounding, it
    * does not start anything.
    */
-  strike(at: number, velocity: number, delay: number): void {
+  strike(at: number, velocity: number, delay: number, shape: Timbre['strike']): void {
     if (this.freq === null) return
     const peak = this.level * (STRIKE_FLOOR + STRIKE_RANGE * velocity)
     for (const gain of this.gains) {
       // Anchored before the duck: a ramp with no recent event interpolates from
       // wherever the last one was, which would start the fall minutes early.
-      gain.gain.cancelScheduledValues(at - STRIKE_DUCK)
-      gain.gain.setValueAtTime(this.level, at - STRIKE_DUCK)
-      gain.gain.linearRampToValueAtTime(this.level * STRIKE_DEPTH, at)
-      gain.gain.linearRampToValueAtTime(peak, at + delay + STRIKE_ATTACK)
-      gain.gain.linearRampToValueAtTime(this.level, at + delay + STRIKE_ATTACK + STRIKE_SETTLE)
+      gain.gain.cancelScheduledValues(at - shape.duck)
+      gain.gain.setValueAtTime(this.level, at - shape.duck)
+      gain.gain.linearRampToValueAtTime(this.level * shape.depth, at)
+      gain.gain.linearRampToValueAtTime(peak, at + delay + shape.attack)
+      gain.gain.linearRampToValueAtTime(this.level, at + delay + shape.attack + shape.settle)
     }
   }
 
-  release(at: number, fade = FADE): void {
+  release(at: number, fade: number): void {
     this.freq = null
     this.ramp(0, at, fade)
   }
@@ -193,7 +178,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
     lfo.type = 'sine'
     lfo.frequency.value = DRIFT_RATES[u % DRIFT_RATES.length]
     const drift = ctx.createGain()
-    drift.gain.value = DRIFT_CENTS
+    drift.gain.value = 0
     lfo.connect(drift)
     lfo.start()
 
@@ -201,7 +186,6 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
   })
 
   const drive = ctx.createWaveShaper()
-  drive.curve = saturation(DRIVE)
   drive.oversample = '4x'
 
   // Two poles cascaded: 24 dB/oct, with resonance on the first stage only.
@@ -209,10 +193,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
   const filterB = ctx.createBiquadFilter()
   for (const f of [filterA, filterB]) {
     f.type = 'lowpass'
-    f.frequency.value = CENTRE_HZ
-    f.Q.value = CENTRE_Q
   }
-  filterB.Q.value = CENTRE_Q
 
   // Resonance adds level as well as colour; this takes it back out.
   const resonanceTrim = ctx.createGain()
@@ -239,10 +220,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
   // drops rather than being cut off with the source.
   const dry = ctx.createGain()
   const wet = ctx.createGain()
-  wet.gain.value = REVERB_WET
-  dry.gain.value = 1 - REVERB_WET * 0.5
   const preDelay = ctx.createDelay(0.2)
-  preDelay.delayTime.value = PRE_DELAY
   const reverb = ctx.createConvolver()
   reverb.buffer = impulseResponse(ctx, REVERB_SECONDS)
   master.connect(dry)
@@ -267,25 +245,49 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
 
   let tilt = 0
   let rootHz = REFERENCE_HZ
+  let timbre: Timbre = timbreById(DEFAULT_TIMBRE)
 
   function updateFilter(): void {
-    const base = CENTRE_HZ + (tilt < 0 ? tilt * INWARD_HZ : tilt * OUTWARD_HZ)
-    const tracked = base * Math.pow(rootHz / REFERENCE_HZ, KEY_TRACK)
-    const q = CENTRE_Q + Math.abs(tilt) * (tilt < 0 ? INWARD_Q : OUTWARD_Q)
+    const f = timbre.filter
+    const base = f.centre + (tilt < 0 ? tilt * f.inwardHz : tilt * f.outwardHz)
+    const tracked = base * Math.pow(rootHz / REFERENCE_HZ, f.keyTrack)
+    const q = f.q + Math.abs(tilt) * (tilt < 0 ? f.inwardQ : f.outwardQ)
     const now = ctx.currentTime
     const cutoff = Math.min(Math.max(tracked, 60), 18000)
     filterA.frequency.setTargetAtTime(cutoff, now, FILTER_GLIDE)
     filterB.frequency.setTargetAtTime(cutoff, now, FILTER_GLIDE)
     filterA.Q.setTargetAtTime(q, now, FILTER_GLIDE)
-    resonanceTrim.gain.setTargetAtTime(1 / (1 + (q - CENTRE_Q) * 0.18), now, FILTER_GLIDE)
+    filterB.Q.setTargetAtTime(f.q, now, FILTER_GLIDE)
+    resonanceTrim.gain.setTargetAtTime(1 / (1 + (q - f.q) * 0.18), now, FILTER_GLIDE)
   }
-  updateFilter()
+
+  const subLevel = () => level * timbre.sub * UNISON
+  const sounding = () => voices.some((v) => v.busy)
+
+  /**
+   * Everything a voice owns, applied at once. Called on every change of voice
+   * and once at build time, so there is exactly one description of what a voice
+   * *is* and no second place for it to drift out of date.
+   */
+  function applyTimbre(): void {
+    for (const voice of voices) voice.setTone(timbre.wave, timbre.detuneCents)
+    for (const bus of buses) bus.drift.gain.value = timbre.driftCents
+    drive.curve = saturation(timbre.drive)
+    wet.gain.value = timbre.reverb.wet
+    dry.gain.value = 1 - timbre.reverb.wet * 0.5
+    preDelay.delayTime.value = timbre.reverb.preDelay
+    subGain.gain.setTargetAtTime(sounding() ? subLevel() : 0, ctx.currentTime, timbre.fade)
+    updateFilter()
+  }
+
+  applyTimbre()
 
   return {
     mix: dcBlock,
 
-    setWave(wave) {
-      for (const voice of voices) voice.setWave(wave)
+    setTimbre(id) {
+      timbre = timbreById(id)
+      applyTimbre()
     },
 
     setVolume(value) {
@@ -306,7 +308,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       // Nothing held over means the whole chord is being replaced, and the
       // crossfade should be proportionate to that rather than to a single note.
       const retained = wanted.some((f) => voices.some((v) => v.freq === f))
-      const fade = retained ? FADE : REVOICE_FADE
+      const fade = retained ? timbre.fade : REVOICE_FADE
 
       for (const voice of voices) {
         if (voice.freq !== null && !wanted.includes(voice.freq)) voice.release(now, fade)
@@ -319,7 +321,7 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
 
       rootHz = Math.min(...wanted)
       sub.frequency.setTargetAtTime(rootHz / 2, now, 0.02)
-      subGain.gain.setTargetAtTime(level * SUB_LEVEL * UNISON, now, FADE)
+      subGain.gain.setTargetAtTime(subLevel(), now, timbre.fade)
       updateFilter()
     },
 
@@ -330,22 +332,22 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
      * one that is quiet, and the chord never stops.
      */
     strike(at, velocity) {
-      const sounding = voices.filter((v) => v.busy).sort((a, b) => (a.freq ?? 0) - (b.freq ?? 0))
-      sounding.forEach((voice, i) => voice.strike(at, velocity, i * STRUM_SPREAD))
+      const ringing = voices.filter((v) => v.busy).sort((a, b) => (a.freq ?? 0) - (b.freq ?? 0))
+      ringing.forEach((voice, i) => voice.strike(at, velocity, i * timbre.strike.spread, timbre.strike))
 
       // The sub is part of the chord's body; leaving it up fills the gap the
       // strike just made.
-      const subLevel = level * SUB_LEVEL * UNISON
-      subGain.gain.cancelScheduledValues(at - STRIKE_DUCK)
-      subGain.gain.setValueAtTime(subLevel, at - STRIKE_DUCK)
-      subGain.gain.linearRampToValueAtTime(subLevel * STRIKE_DEPTH, at)
-      subGain.gain.linearRampToValueAtTime(subLevel, at + STRIKE_ATTACK + STRIKE_SETTLE)
+      const body = subLevel()
+      subGain.gain.cancelScheduledValues(at - timbre.strike.duck)
+      subGain.gain.setValueAtTime(body, at - timbre.strike.duck)
+      subGain.gain.linearRampToValueAtTime(body * timbre.strike.depth, at)
+      subGain.gain.linearRampToValueAtTime(body, at + timbre.strike.attack + timbre.strike.settle)
     },
 
     stop() {
       const now = ctx.currentTime
-      for (const voice of voices) voice.release(now)
-      subGain.gain.setTargetAtTime(0, now, FADE)
+      for (const voice of voices) voice.release(now, timbre.fade)
+      subGain.gain.setTargetAtTime(0, now, timbre.fade)
       master.gain.setTargetAtTime(0, now, GAIN_GLIDE)
     },
   }
@@ -373,11 +375,14 @@ function impulseResponse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
   const buffer = ctx.createBuffer(2, length, ctx.sampleRate)
   for (let channel = 0; channel < 2; channel++) {
     const data = buffer.getChannelData(channel)
+    // Seeded per channel: the two sides must decorrelate, and the room must be
+    // the same room on every build or the audio checks measure the dice.
+    const random = seeded(0x51f0 + channel)
     let previous = 0
     for (let i = 0; i < length; i++) {
       const t = i / length
       // One-pole lowpass on the noise takes the fizz off the tail.
-      previous = previous * 0.68 + (Math.random() * 2 - 1) * 0.32
+      previous = previous * 0.68 + (random() * 2 - 1) * 0.32
       // Fade the first milliseconds in, or the tail starts with a click.
       const onset = Math.min(1, i / (ctx.sampleRate * 0.005))
       data[i] = previous * Math.pow(1 - t, 2.6) * onset
@@ -390,7 +395,7 @@ function impulseResponse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
 export class Synth {
   private ctx: AudioContext | null = null
   private graph: SynthGraph | null = null
-  private wave: Wave = 'triangle'
+  private timbre: TimbreId = DEFAULT_TIMBRE
 
   async start(): Promise<void> {
     if (this.ctx) return
@@ -398,7 +403,7 @@ export class Synth {
     // instrument, and latency is felt directly in the hands.
     this.ctx = new AudioContext({ latencyHint: 'interactive' })
     this.graph = buildSynth(this.ctx)
-    this.graph.setWave(this.wave)
+    this.graph.setTimbre(this.timbre)
     await this.ctx.resume()
   }
 
@@ -419,9 +424,9 @@ export class Synth {
     return (this.ctx.baseLatency + (this.ctx.outputLatency || 0)) * 1000
   }
 
-  setWave(wave: Wave): void {
-    this.wave = wave
-    this.graph?.setWave(wave)
+  setTimbre(id: TimbreId): void {
+    this.timbre = id
+    this.graph?.setTimbre(id)
   }
 
   setVolume(level: number): void {

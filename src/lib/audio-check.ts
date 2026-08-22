@@ -1,7 +1,8 @@
 import { KEYS, buildChord } from './chords'
 import { buildKit } from './drums'
 import type { Voice } from './groove'
-import { buildSynth, type Wave } from './synth'
+import { buildSynth } from './synth'
+import { TIMBRES, type TimbreId } from './timbre'
 
 /**
  * Renders the real signal path offline and measures it. Audio defects are
@@ -13,7 +14,9 @@ import { buildSynth, type Wave } from './synth'
  * exercises the same graph the player hears.
  */
 
-const WAVES: Wave[] = ['triangle', 'sawtooth', 'square']
+/** Every voice is measured, not just the default one: a voice is a set of
+ *  levels, and a set of levels is something that can clip. */
+const VOICES: TimbreId[] = TIMBRES.map((t) => t.id)
 const RATE = 48000
 const SECONDS = 0.6
 
@@ -37,6 +40,14 @@ export interface StrikeMeasurement {
   /** Quietest moment of the strike against the level it was holding. A strike
    *  that does not dip is not an articulation, it is a drone with a rumour. */
   dip: number
+  /**
+   * What this voice may dip to. Voices articulate differently on purpose — a
+   * felt hammer is percussive and a pad merely notices the beat — so the check
+   * asks whether each voice did what it declared, not whether they all behave
+   * the same. A voice that declares a deep duck has to deliver one; every voice
+   * has to do something.
+   */
+  ceiling: number
 }
 
 export interface AudioReport {
@@ -118,10 +129,10 @@ function maxStep(buffer: AudioBuffer, from: number, to: number): number {
   return Number(worst.toFixed(4))
 }
 
-async function renderHeld(wave: Wave, freqs: number[], tilt: number): Promise<AudioBuffer> {
+async function renderHeld(voice: TimbreId, freqs: number[], tilt: number): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
   const synth = buildSynth(ctx)
-  synth.setWave(wave)
+  synth.setTimbre(voice)
   synth.setTilt(tilt)
   synth.play(freqs)
   synth.setVolume(1)
@@ -129,10 +140,10 @@ async function renderHeld(wave: Wave, freqs: number[], tilt: number): Promise<Au
 }
 
 /** Uses offline suspend/resume to change chord mid-render, as a player would. */
-async function renderTransition(wave: Wave, from: number[], to: number[]): Promise<AudioBuffer> {
+async function renderTransition(voice: TimbreId, from: number[], to: number[]): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
   const synth = buildSynth(ctx)
-  synth.setWave(wave)
+  synth.setTimbre(voice)
   synth.play(from)
   synth.setVolume(1)
 
@@ -152,16 +163,16 @@ const KIT: Voice[] = ['kick', 'snare', 'hat']
  * Drums were added after the headroom was measured, so the measurement has to
  * be retaken — a mix that clips is not a drum bug, it is an instrument bug.
  */
-async function renderMix(wave: Wave): Promise<AudioBuffer> {
+async function renderMix(voice: TimbreId): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
   const synth = buildSynth(ctx)
-  synth.setWave(wave)
+  synth.setTimbre(voice)
   synth.setTilt(1)
   synth.play(chord(1, 4, true))
   synth.setVolume(1)
 
   const kit = buildKit(ctx, synth.mix)
-  for (const voice of KIT) kit.trigger(voice, SECONDS / 3, 1)
+  for (const drum of KIT) kit.trigger(drum, SECONDS / 3, 1)
   // The chord is struck on the same beat the kit lands on, which is the point
   // at which everything in the mix is loud at once.
   synth.strike(SECONDS / 3, 1)
@@ -172,10 +183,10 @@ async function renderMix(wave: Wave): Promise<AudioBuffer> {
  * A strike on its own, to measure whether re-articulating a held chord clicks.
  * A duck and a fast attack are steps waiting to happen, and a step is a click.
  */
-async function renderStrum(wave: Wave): Promise<AudioBuffer> {
+async function renderStrum(voice: TimbreId): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
   const synth = buildSynth(ctx)
-  synth.setWave(wave)
+  synth.setTimbre(voice)
   synth.play(chord(1, 1, true))
   synth.setVolume(1)
   synth.strike(SECONDS / 2, 1)
@@ -185,44 +196,49 @@ async function renderStrum(wave: Wave): Promise<AudioBuffer> {
 export async function runAudioCheck(): Promise<AudioReport> {
   const levels: Measurement[] = []
 
-  for (const wave of WAVES) {
+  for (const voice of VOICES) {
     for (let voicing = 1; voicing <= 4; voicing++) {
       for (const major of [true, false]) {
         // Full volume, filter wide open, resonance high: the loudest the
         // instrument can be asked to be.
         const freqs = chord(major ? 1 : 4, voicing, major)
-        const buffer = await renderHeld(wave, freqs, 1)
-        levels.push(analyse(buffer, `${wave} v${voicing} ${major ? 'maj' : 'min'}`))
+        const buffer = await renderHeld(voice, freqs, 1)
+        levels.push(analyse(buffer, `${voice} v${voicing} ${major ? 'maj' : 'min'}`))
       }
     }
   }
 
-  for (const wave of WAVES) {
-    levels.push(analyse(await renderMix(wave), `${wave} + kit + strum`))
+  for (const voice of VOICES) {
+    levels.push(analyse(await renderMix(voice), `${voice} + kit + strum`))
   }
 
   const transitions: TransitionMeasurement[] = []
-  for (const wave of WAVES) {
+  for (const voice of VOICES) {
     // E to Am shares two pitches; both should be held, not retriggered.
-    const buffer = await renderTransition(wave, chord(1, 1, true), chord(4, 1, false))
+    const buffer = await renderTransition(voice, chord(1, 1, true), chord(4, 1, false))
     const at = SECONDS / 2
     transitions.push({
-      label: `${wave} I→iv`,
+      label: `${voice} I→iv`,
       transitionStep: maxStep(buffer, at - 0.01, at + 0.05),
       steadyStep: maxStep(buffer, 0.15, 0.35),
     })
   }
 
   const strikes: StrikeMeasurement[] = []
-  for (const wave of WAVES) {
-    const buffer = await renderStrum(wave)
+  for (const voice of VOICES) {
+    const buffer = await renderStrum(voice)
     const at = SECONDS / 2
     transitions.push({
-      label: `${wave} strum`,
+      label: `${voice} strum`,
       transitionStep: maxStep(buffer, at - 0.03, at + 0.05),
       steadyStep: maxStep(buffer, 0.15, 0.4),
     })
-    strikes.push({ label: `${wave} strum`, dip: dipAt(buffer, at) })
+    const declared = TIMBRES.find((t) => t.id === voice)!.strike.depth
+    // The ceilings are wide enough to separate a deep duck from a light one —
+    // a voice that does not articulate at all measures near 1.0 — and no
+    // tighter: the same render varies about 0.04 between machines, so a
+    // threshold closer than that tests the runner rather than the voice.
+    strikes.push({ label: `${voice} strum`, dip: dipAt(buffer, at), ceiling: declared <= 0.15 ? 0.45 : 0.7 })
   }
 
   return {

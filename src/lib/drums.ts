@@ -1,4 +1,5 @@
 import type { Voice } from './groove.ts'
+import { fillNoise } from './noise.ts'
 
 /**
  * A kit, synthesised. Four voices from one noise buffer and a handful of
@@ -45,8 +46,7 @@ export function buildKit(ctx: BaseAudioContext, destination: AudioNode): DrumKit
   level.connect(destination)
 
   const noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * NOISE_SECONDS), ctx.sampleRate)
-  const channel = noise.getChannelData(0)
-  for (let i = 0; i < channel.length; i++) channel[i] = Math.random() * 2 - 1
+  fillNoise(noise.getChannelData(0), 0x4b17)
 
   function envelope(time: number, peak: number, decay: number): GainNode {
     const gain = ctx.createGain()

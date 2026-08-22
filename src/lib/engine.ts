@@ -3,7 +3,8 @@ import { FingerClassifier, registerFromHeight } from './classifier'
 import { buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Chord, type Key } from './chords'
 import { Committer, Grace, Latch, Smoothed } from './smoothing'
 import type { PoseTarget } from './pose'
-import { Synth, type AudioBridge, type Wave } from './synth'
+import { Synth, type AudioBridge } from './synth'
+import type { TimbreId } from './timbre'
 import { Overlay } from './overlay'
 
 /**
@@ -188,8 +189,8 @@ export class Engine {
     this.synth.stop()
   }
 
-  setWave(wave: Wave): void {
-    this.synth.setWave(wave)
+  setTimbre(id: TimbreId): void {
+    this.synth.setTimbre(id)
   }
 
   /** The clock, the bus and the articulation a backing track needs to be in

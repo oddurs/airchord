@@ -1,0 +1,92 @@
+/* The middle of the frame, where the hint used to be. Nothing else is on screen
+   while this runs, because one instruction at a time is the whole idea. */
+.welcome {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: min(560px, 84vw);
+  text-align: center;
+  text-shadow: 0 1px 40px rgba(0, 0, 0, 0.85);
+}
+
+.prompt {
+  margin: 0;
+  font-size: clamp(24px, 4.2vw, 44px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: var(--track-display);
+  color: var(--ink-full);
+  /* The line changes every step; fading it in stops it reading as a jump cut. */
+  animation: arrive 320ms ease-out;
+}
+
+.aside {
+  margin: 14px 0 0;
+  font-size: clamp(13px, 1.7vw, 16px);
+  color: var(--ink-quiet);
+  animation: arrive 420ms ease-out;
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt,
+  .aside {
+    animation: none;
+  }
+}
+
+.progress {
+  display: flex;
+  gap: 9px;
+  margin-top: clamp(28px, 5vh, 46px);
+}
+
+.dot,
+.dotNow,
+.dotDone {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transition: background 200ms linear, transform 200ms ease-out;
+}
+
+.dot {
+  background: rgba(var(--ink), 0.2);
+}
+
+.dotDone {
+  background: rgba(var(--ink), 0.55);
+}
+
+.dotNow {
+  background: var(--ink-full);
+  transform: scale(1.5);
+}
+
+.skip {
+  margin-top: 22px;
+  background: none;
+  border: 0;
+  padding: 6px;
+  font: inherit;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--ink-strong);
+}

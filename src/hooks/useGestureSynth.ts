@@ -16,7 +16,18 @@ export type Phase = 'idle' | 'loading' | 'running' | 'error'
  * self-explanatory, so each one gets an answer rather than a DOMException name.
  */
 function describe(err: unknown): string {
-  if (!(err instanceof Error)) return String(err)
+  // Not everything that fails is an Error. A media element or a failed script
+  // load rejects with an Event, and `String(event)` is "[object Event]" — which
+  // tells a player nothing at all about what went wrong.
+  if (typeof Event !== 'undefined' && err instanceof Event) {
+    const source = (err.target as { src?: string } | null)?.src
+    return source
+      ? `Failed to load ${new URL(source, location.href).pathname}. Check your connection and reload.`
+      : 'Something failed to load. Check your connection and reload.'
+  }
+  if (typeof err === 'string') return err
+  if (!(err instanceof Error)) return 'Could not start the instrument. Reload and try again.'
+
   switch (err.name) {
     case 'NotAllowedError':
       return 'Camera permission was denied. Allow it in your browser\u2019s site settings, then reload.'
@@ -93,6 +104,9 @@ export function useGestureSynth() {
       }
       loop()
     } catch (err) {
+      // Keep the raw failure in the console; the message on screen is for a
+      // player, not for whoever has to debug it.
+      console.error('Airchord failed to start', err)
       stream?.getTracks().forEach((t) => t.stop())
       setError(describe(err))
       setPhase('error')

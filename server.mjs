@@ -36,7 +36,7 @@ createTcp((socket) => {
   })
   socket.on('error', () => socket.destroy())
 }).listen(port, '0.0.0.0', () => {
-  console.log(`\n  handi-chord ${dev ? 'dev' : 'production'}\n`)
+  console.log(`\n  airchord ${dev ? 'dev' : 'production'}\n`)
   console.log(`  ➜  local:   https://localhost:${port}`)
   for (const ip of lanAddresses()) console.log(`  ➜  network: https://${ip}:${port}`)
   if (!trusted) console.log('\n  ⚠  self-signed cert — expect a browser warning; iOS needs mkcert (see README)')

@@ -27,7 +27,7 @@ export default function About({ onClose }: { onClose: () => void }) {
         </button>
 
         <h2 id="about-title" className={styles.title}>
-          Handi Chord
+          Airchord
         </h2>
         <p className={styles.standfirst}>A chord synthesiser you play with your hands.</p>
 

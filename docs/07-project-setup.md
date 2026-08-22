@@ -53,7 +53,7 @@ The project has learned expensive lessons that are invisible in the code. They b
 - **No per-note envelope.** The right hand is the envelope; that is the instrument's identity.
 - **Commands**: `npm run verify` (typecheck, tests, build), `npm run audio` (renders and measures
   the real signal path), `npm run dev` then `?capture` for the dataset tool.
-- **Dev-only hooks**: `window.__handi`, `__capture`, `__audioCheck` — compiled out of production.
+- **Dev-only hooks**: `window.__airchord`, `__capture`, `__audioCheck` — compiled out of production.
 - **Attribution is a licence obligation**, not a nicety.
 
 A scoped `src/lib/CLAUDE.md` can carry the DSP and classifier specifics so the root file stays short.

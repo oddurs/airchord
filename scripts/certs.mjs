@@ -52,7 +52,7 @@ export function ensureCerts({ quiet = false } = {}) {
   execFileSync('openssl', [
     'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '825',
     '-keyout', KEY, '-out', CERT,
-    '-subj', '/CN=handi-chord-dev',
+    '-subj', '/CN=airchord-dev',
     '-addext', `subjectAltName=${san}`,
   ], { stdio: quiet ? 'ignore' : 'inherit' })
 

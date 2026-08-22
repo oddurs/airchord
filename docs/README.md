@@ -1,4 +1,4 @@
-# handi-chord docs
+# airchord docs
 
 A gesture-controlled chord synthesiser: raise fingers to pick a chord, tilt the hands to
 shape it. This is an independent reimplementation of **Gesture Synth**.

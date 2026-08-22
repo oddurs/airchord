@@ -102,7 +102,7 @@ The measured roll values are now unit tests. The threshold bug was invisible to 
 existed — it typechecked, built and played; it just could not reach half the chords — so the values
 that exposed it are pinned in `chords.test.ts` rather than left in a commit message.
 
-`Engine` exposes the raw per-hand features on `window.__handi` in development, which is how the
+`Engine` exposes the raw per-hand features on `window.__airchord` in development, which is how the
 measurements were taken. It is compiled out of production builds.
 
 ## Still unverified

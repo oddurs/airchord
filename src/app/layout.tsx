@@ -10,7 +10,7 @@ const ui = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Handi Chord',
+  title: 'Airchord',
   description: 'A gesture-controlled chord synthesiser. Raise fingers to pick chords, tilt to shape them.',
 }
 

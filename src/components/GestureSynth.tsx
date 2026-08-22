@@ -98,7 +98,7 @@ export default function GestureSynth() {
 
       {phase === 'idle' && (
         <button type="button" className={styles.startOverlay} onClick={start}>
-          <span className={styles.startTitle}>Handi Chord</span>
+          <span className={styles.startTitle}>Airchord</span>
           <span className={styles.startStandfirst}>A chord synthesiser you play with your hands.</span>
           <span className={`${styles.startAction} label`}>Begin</span>
           <span className={styles.startNote}>Needs your camera · nothing leaves this device</span>

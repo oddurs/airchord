@@ -11,7 +11,7 @@ const URL_ = process.env.AUDIO_CHECK_URL ?? 'https://localhost:9191/'
 const CHROME =
   process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const PORT = 9333
-const PROFILE = path.join(tmpdir(), `handi-audio-${process.pid}`)
+const PROFILE = path.join(tmpdir(), `airchord-audio-${process.pid}`)
 
 /** Full scale. Anything above this is clipped by the output device. */
 const PEAK_CEILING = 1.0

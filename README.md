@@ -1,4 +1,4 @@
-# Handi Chord
+# Airchord
 
 A chord synthesiser you play with your hands, in the browser. Raise fingers to pick a chord, tilt
 your wrists to shape it. Your left hand chooses *what* is played; your right hand chooses *how* it

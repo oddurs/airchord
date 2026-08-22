@@ -118,6 +118,19 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
             ))}
           </ol>
 
+          {mode === 'play' && (
+            <div className={styles.beats} aria-hidden="true">
+              {Array.from({ length: song.beatsPerBar }, (_, i) => (
+                <span
+                  // Re-keyed every beat so the pulse restarts rather than resumes.
+                  key={i === state.beat ? `${state.bar}-${state.beat}` : i}
+                  className={i === state.beat ? styles.beatOn : styles.beat}
+                  style={i === state.beat ? { animationDuration: `${Math.round(state.beatMs)}ms` } : undefined}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Both hands for the bar you are in. It sits below the lane rather
               than inside it, so the picture you are copying does not slide
               sideways every bar. */}
@@ -136,19 +149,6 @@ export default function SongPanel({ songs, song, mode, tempoScale, state, onChoo
               <figcaption className={`${styles.handName} label`}>Sound</figcaption>
             </figure>
           </div>
-
-          {mode === 'play' && (
-            <div className={styles.beats} aria-hidden="true">
-              {Array.from({ length: song.beatsPerBar }, (_, i) => (
-                <span
-                  // Re-keyed every beat so the pulse restarts rather than resumes.
-                  key={i === state.beat ? `${state.bar}-${state.beat}` : i}
-                  className={i === state.beat ? styles.beatOn : styles.beat}
-                  style={i === state.beat ? { animationDuration: `${Math.round(state.beatMs)}ms` } : undefined}
-                />
-              ))}
-            </div>
-          )}
 
           <p className={styles.feedback} aria-live="polite">
             {state.countIn ? (

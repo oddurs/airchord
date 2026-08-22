@@ -286,7 +286,7 @@ export class Engine {
         height: Number(h.height.toFixed(3)),
       }
     const audioMs = this.synth.latencyMs
-    ;(window as Window & { __handi?: unknown }).__handi = {
+    ;(window as Window & { __airchord?: unknown }).__airchord = {
       left: summarise(left),
       right: summarise(right),
       chord: chord && { name: chord.name, numeral: chord.numeral, quality: chord.quality },

@@ -27,7 +27,7 @@ than a compromise applied to the first.
 
 Measured on this machine, not estimated:
 
-Now measured end to end and reported live in the dev diagnostics (`window.__handi.timing`):
+Now measured end to end and reported live in the dev diagnostics (`window.__airchord.timing`):
 
 | Term | Measured | Notes |
 |---|---|---|

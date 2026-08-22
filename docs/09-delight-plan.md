@@ -51,17 +51,27 @@ script only compares a number to the ceiling the voice set for itself.
 
 | | dip | allowed |
 |---|---|---|
-| felt | 0.365 | 0.45 |
-| glass | 0.504 | 0.70 |
-| nylon | 0.329 | 0.45 |
-| organ | 0.549 | 0.70 |
+| felt | 0.288 | 0.45 |
+| glass | 0.534 | 0.70 |
+| nylon | 0.284 | 0.45 |
+| organ | 0.508 | 0.70 |
 
-It then failed on CI, at 0.72 against a 0.70 ceiling, having passed locally at 0.683 — and that was
-worth more than a green tick. The same render varies about 0.04 between machines, so **Glass's duck
-was so shallow that a check could not tell it from no duck at all**, which means a listener could not
-either. The voice now ducks to 0.40 rather than 0.55, and the ceilings are wide enough to separate a
-deep duck from a light one and no tighter. A threshold closer than the noise tests the runner rather
-than the voice.
+### And then it failed on CI, which was worth more than a green tick
+
+Glass measured 0.72 against a 0.70 ceiling on the runner, having passed locally at 0.683. Chasing it
+turned up something better than a flaky threshold: **the reverb impulse response was filled with
+`Math.random()` on every build**, so every number in the audio report wobbled — by about 0.12 run to
+run, which is larger than several of the things the report is supposed to be measuring. A check that
+moves more than its subject is a check nobody can act on, and "measure, then change" stops being
+something this project can actually do.
+
+The impulse response and the drum noise buffer are now filled from a seeded generator. Noise is
+noise; the instrument cannot tell, and the report is now identical run to run. Only `worst peak`
+still moves, by about 0.009, because each drum hit starts at a random offset into the noise so
+repeated hats do not phase into a tone — that one is deliberate, and it has 0.13 of headroom.
+
+The failure also said something true about the sound. Glass ducked to 0.55, which the measurement
+could not tell apart from not ducking at all — and neither could a listener. It ducks to 0.40 now.
 
 Worst peak across all four with drums and a strum on the same beat: **0.847 of full scale, zero
 clipped samples**, and no chord transition steps harder than simply holding one.

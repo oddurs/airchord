@@ -1,3 +1,4 @@
+import { seeded } from './noise.ts'
 import { DEFAULT_TIMBRE, timbreById, type Timbre, type TimbreId } from './timbre.ts'
 
 /** Enough voices for a four-note chord plus the four it is replacing. */
@@ -374,11 +375,14 @@ function impulseResponse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
   const buffer = ctx.createBuffer(2, length, ctx.sampleRate)
   for (let channel = 0; channel < 2; channel++) {
     const data = buffer.getChannelData(channel)
+    // Seeded per channel: the two sides must decorrelate, and the room must be
+    // the same room on every build or the audio checks measure the dice.
+    const random = seeded(0x51f0 + channel)
     let previous = 0
     for (let i = 0; i < length; i++) {
       const t = i / length
       // One-pole lowpass on the noise takes the fizz off the tail.
-      previous = previous * 0.68 + (Math.random() * 2 - 1) * 0.32
+      previous = previous * 0.68 + (random() * 2 - 1) * 0.32
       // Fade the first milliseconds in, or the tail starts with a click.
       const onset = Math.min(1, i / (ctx.sampleRate * 0.005))
       data[i] = previous * Math.pow(1 - t, 2.6) * onset

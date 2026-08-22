@@ -234,7 +234,11 @@ export async function runAudioCheck(): Promise<AudioReport> {
       steadyStep: maxStep(buffer, 0.15, 0.4),
     })
     const declared = TIMBRES.find((t) => t.id === voice)!.strike.depth
-    strikes.push({ label: `${voice} strum`, dip: dipAt(buffer, at), ceiling: declared <= 0.15 ? 0.4 : 0.7 })
+    // The ceilings are wide enough to separate a deep duck from a light one —
+    // a voice that does not articulate at all measures near 1.0 — and no
+    // tighter: the same render varies about 0.04 between machines, so a
+    // threshold closer than that tests the runner rather than the voice.
+    strikes.push({ label: `${voice} strum`, dip: dipAt(buffer, at), ceiling: declared <= 0.15 ? 0.45 : 0.7 })
   }
 
   return {

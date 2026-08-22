@@ -89,8 +89,11 @@ export const TIMBRES: Timbre[] = [
     fade: 0.05,
     filter: { centre: 2400, q: 0.9, inwardHz: 1600, inwardQ: 1.2, outwardHz: 5200, outwardQ: 4, keyTrack: 0.25 },
     reverb: { wet: 0.38, preDelay: 0.045 },
-    // Barely ducks and swells back: a pad notices the beat rather than marking it.
-    strike: { duck: 0.03, depth: 0.55, attack: 0.05, settle: 0.5, spread: 0.03 },
+    // Ducks lightly and swells back: a pad notices the beat rather than marking
+    // it. It was shallower still, at 0.55, until the measurement pointed out
+    // that a duck that shallow is not distinguishable from no duck at all —
+    // across machines, and therefore to a listener.
+    strike: { duck: 0.03, depth: 0.4, attack: 0.05, settle: 0.5, spread: 0.03 },
   },
   {
     id: 'nylon',

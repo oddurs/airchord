@@ -1,50 +1,10 @@
-import type { Kit } from './songs.ts'
+import type { Voice } from './groove.ts'
 
 /**
- * A kit, synthesised. Three voices from oscillators and one noise buffer — the
- * same reasoning that removed Tone.js in S1 applies to a drum sample library:
- * nothing here needs megabytes of audio, and the whole kit is a few envelopes.
+ * A kit, synthesised. Four voices from one noise buffer and a handful of
+ * envelopes — the same reasoning that removed Tone.js in S1 applies to a drum
+ * sample library: nothing here needs megabytes of audio.
  */
-
-export type Voice = 'kick' | 'snare' | 'hat'
-
-/** One hit, at a fractional beat within the bar. */
-export interface Hit {
-  beat: number
-  voice: Voice
-  gain: number
-}
-
-const eighths = (voice: Voice, gain: number, beats: number): Hit[] =>
-  Array.from({ length: beats * 2 }, (_, i) => ({ beat: i / 2, voice, gain: gain * (i % 2 ? 0.62 : 1) }))
-
-/** Straight four, hats on the eighths. Generic, not a transcription. */
-const ROCK: Hit[] = [
-  { beat: 0, voice: 'kick', gain: 1 },
-  { beat: 1, voice: 'snare', gain: 0.9 },
-  { beat: 2, voice: 'kick', gain: 0.85 },
-  { beat: 3, voice: 'snare', gain: 0.9 },
-  ...eighths('hat', 0.3, 4),
-]
-
-/** Every beat, accented on the one, so a bar is countable. */
-const CLICK: Hit[] = Array.from({ length: 4 }, (_, beat) => ({
-  beat,
-  voice: 'hat' as Voice,
-  gain: beat === 0 ? 0.85 : 0.45,
-}))
-
-export const PATTERNS: Record<Kit, Hit[]> = { rock: ROCK, click: CLICK, none: [] }
-
-/** The count-in is always a click, whatever the song's kit is. */
-export const COUNT_IN = CLICK
-
-/** The hits landing inside one beat, with their offset into it. */
-export function hitsOn(pattern: Hit[], beat: number): { hit: Hit; offset: number }[] {
-  return pattern
-    .filter((h) => Math.floor(h.beat) === beat)
-    .map((h) => ({ hit: h, offset: h.beat - beat }))
-}
 
 export interface DrumKit {
   trigger(voice: Voice, time: number, gain: number): void
@@ -66,6 +26,10 @@ const SNARE_DECAY = 0.16
 
 const HAT_HZ = 7200
 const HAT_DECAY = 0.045
+
+/** Section boundaries. Long enough to be a cymbal, short enough not to wash. */
+const CRASH_HZ = 3400
+const CRASH_DECAY = 1.1
 
 const ATTACK = 0.002
 const NOISE_SECONDS = 1
@@ -100,7 +64,7 @@ export function buildKit(ctx: BaseAudioContext, destination: AudioNode): DrumKit
     source.buffer = noise
     source.loop = true
     // A different slice each hit, so repeated hats do not phase into a tone.
-    source.start(time, Math.random() * (NOISE_SECONDS - decay - 0.01))
+    source.start(time, Math.random() * Math.max(0.01, NOISE_SECONDS - decay - 0.01))
     source.stop(time + decay + 0.02)
     return source
   }
@@ -134,11 +98,12 @@ export function buildKit(ctx: BaseAudioContext, destination: AudioNode): DrumKit
         return
       }
 
+      const decay = voice === 'crash' ? CRASH_DECAY : HAT_DECAY
       const high = ctx.createBiquadFilter()
       high.type = 'highpass'
-      high.frequency.value = HAT_HZ
-      high.connect(envelope(time, gain, HAT_DECAY))
-      noiseSource(time, HAT_DECAY).connect(high)
+      high.frequency.value = voice === 'crash' ? CRASH_HZ : HAT_HZ
+      high.connect(envelope(time, gain * (voice === 'crash' ? 0.55 : 1), decay))
+      noiseSource(time, decay).connect(high)
     },
 
     dispose() {

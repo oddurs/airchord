@@ -59,12 +59,18 @@ export class Committer<T> {
     this.holdMs = holdMs
   }
 
-  update(next: T | null, key: string | null, now: number): T | null {
+  /**
+   * `hold` overrides the default for this frame. Confidence can be bought more
+   * cheaply when something else already expects this answer — a song knows what
+   * chord is coming, and a chord that was predicted needs less proving than one
+   * that was not. It is still the player's own pose either way.
+   */
+  update(next: T | null, key: string | null, now: number, hold = this.holdMs): T | null {
     if (key !== this.candidate) {
       this.candidate = key
       this.since = now
     }
-    if (now - this.since >= this.holdMs) this.value = next
+    if (now - this.since >= hold) this.value = next
     return this.value
   }
 

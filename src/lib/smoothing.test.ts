@@ -86,3 +86,10 @@ test('grace re-arms on every sighting', () => {
   g.update(7, 180)
   assert.equal(g.update(null, 350), 7, 'the window runs from the last sighting')
 })
+
+test('a committer can be told to trust this frame sooner', () => {
+  const committer = new Committer<string>(100)
+  committer.update('chord', 'chord', 0)
+  assert.equal(committer.update('chord', 'chord', 50), null, 'not yet, on the default hold')
+  assert.equal(committer.update('chord', 'chord', 50, 45), 'chord', 'but an expected answer commits')
+})

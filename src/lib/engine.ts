@@ -3,7 +3,7 @@ import { CONFIDENCE_FLOOR, FingerClassifier } from './classifier'
 import { buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Chord, type Key } from './chords'
 import { Committer, Grace, Smoothed } from './smoothing'
 import type { PoseTarget } from './pose'
-import { Synth, type Wave } from './synth'
+import { Synth, type AudioBridge, type Wave } from './synth'
 import { Overlay } from './overlay'
 
 /**
@@ -13,6 +13,14 @@ import { Overlay } from './overlay'
  */
 const CHORD_HOLD_MS = 100
 const COLOUR_HOLD_MS = 40
+
+/**
+ * A chord the song is about to ask for commits sooner. The pose still has to be
+ * made — this buys latency with *expectation*, not with certainty, and the only
+ * chord it accepts early is the one already predicted. It is the cheapest
+ * latency win the instrument has, and it exists only because there is a song.
+ */
+const EXPECTED_HOLD_MS = 45
 
 /** A hand that vanishes for a moment has been dropped by the tracker, not lowered. */
 const HAND_GRACE_MS = 220
@@ -121,9 +129,9 @@ export class Engine {
     this.synth.setWave(wave)
   }
 
-  /** The clock and the bus a drum track has to share to be in time with the
-   *  chords and limited alongside them. Null until the player has started. */
-  get audio(): { context: BaseAudioContext; destination: AudioNode } | null {
+  /** The clock, the bus and the articulation a backing track needs to be in
+   *  time with the chords. Null until the player has started. */
+  get audio(): AudioBridge | null {
     return this.synth.audio
   }
 
@@ -187,13 +195,19 @@ export class Engine {
     const degree = leftFingers && !resting ? degreeFromFingers(leftFingers) : null
 
     const identity = degree === null ? null : { degree, major: this.isMajor }
-    const committed = this.identity.update(identity, identity && `${identity.degree}|${identity.major}`, now)
+    const expected =
+      identity !== null &&
+      this.target !== null &&
+      identity.degree === this.target.degree &&
+      identity.major === this.target.major
+    const hold = expected ? EXPECTED_HOLD_MS : CHORD_HOLD_MS
+    const committed = this.identity.update(identity, identity && `${identity.degree}|${identity.major}`, now, hold)
     const sounding = this.held ?? committed
 
     const commitKey = committed && `${committed.degree}|${committed.major}`
     if (commitKey !== this.lastCommit) {
       this.lastCommit = commitKey
-      if (committed) this.onCommit?.(committed.degree, committed.major, now - CHORD_HOLD_MS)
+      if (committed) this.onCommit?.(committed.degree, committed.major, now - hold)
     }
 
     const wanted: Colour = {
@@ -211,7 +225,6 @@ export class Engine {
       this.synth.stop()
     }
 
-    const voices = rightFingers ? rightFingers.slice(1).filter(Boolean).length : 0
     this.overlay.drawFrame(video)
     this.overlay.drawHands(hands)
     if (this.target) {
@@ -228,7 +241,14 @@ export class Engine {
       }
     }
     if (chord) {
-      this.overlay.drawWave({ degree: chord.degree, major: chord.major, voices, volume, tilt, now })
+      this.overlay.drawWave({
+        freqs: chord.freqs,
+        degree: chord.degree,
+        major: chord.major,
+        volume,
+        tilt,
+        now,
+      })
     }
 
     if (process.env.NODE_ENV !== 'production') {

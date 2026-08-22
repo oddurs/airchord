@@ -84,6 +84,28 @@
   color: var(--ink-full);
 }
 
+/* Where you are in the arrangement, set as one quiet line. */
+.where {
+  display: flex;
+  gap: 1.4em;
+  margin: 0;
+  color: var(--ink-faint);
+}
+
+.section {
+  color: var(--ink-strong);
+}
+
+.ahead::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 1px;
+  margin-right: 1.2em;
+  vertical-align: middle;
+  background: var(--hairline);
+}
+
 /* The lane: now, and the three that are coming. Distance is opacity and size,
    so the eye lands on the current bar without being told to. */
 /* Bottom-aligned so the pose dots form one line across the lane, whatever size

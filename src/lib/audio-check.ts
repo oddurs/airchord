@@ -1,5 +1,6 @@
 import { KEYS, buildChord } from './chords'
-import { buildKit, type Voice } from './drums'
+import { buildKit } from './drums'
+import type { Voice } from './groove'
 import { buildSynth, type Wave } from './synth'
 
 /**
@@ -31,9 +32,17 @@ export interface TransitionMeasurement {
   steadyStep: number
 }
 
+export interface StrikeMeasurement {
+  label: string
+  /** Quietest moment of the strike against the level it was holding. A strike
+   *  that does not dip is not an articulation, it is a drone with a rumour. */
+  dip: number
+}
+
 export interface AudioReport {
   levels: Measurement[]
   transitions: TransitionMeasurement[]
+  strikes: StrikeMeasurement[]
   worstPeak: number
   totalClipped: number
 }
@@ -65,6 +74,33 @@ function analyse(buffer: AudioBuffer, label: string): Measurement {
     rms: Number(Math.sqrt(sum / count).toFixed(3)),
     clipped,
   }
+}
+
+/** RMS of a window, for asking whether something actually got quieter. */
+function rms(buffer: AudioBuffer, from: number, to: number): number {
+  let sum = 0
+  let count = 0
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch)
+    const start = Math.max(0, Math.floor(from * buffer.sampleRate))
+    const end = Math.min(data.length, Math.floor(to * buffer.sampleRate))
+    for (let i = start; i < end; i++) {
+      sum += data[i] * data[i]
+      count++
+    }
+  }
+  return count ? Math.sqrt(sum / count) : 0
+}
+
+/** The deepest short-window dip across a strike, relative to the held level. */
+function dipAt(buffer: AudioBuffer, at: number): number {
+  const held = rms(buffer, at - 0.12, at - 0.02)
+  if (!held) return 1
+  let quietest = Infinity
+  for (let t = at - 0.02; t < at + 0.08; t += 0.004) {
+    quietest = Math.min(quietest, rms(buffer, t, t + 0.006))
+  }
+  return Number((quietest / held).toFixed(3))
 }
 
 /** Largest single-sample step within a time window — a click's signature. */
@@ -126,6 +162,23 @@ async function renderMix(wave: Wave): Promise<AudioBuffer> {
 
   const kit = buildKit(ctx, synth.mix)
   for (const voice of KIT) kit.trigger(voice, SECONDS / 3, 1)
+  // The chord is struck on the same beat the kit lands on, which is the point
+  // at which everything in the mix is loud at once.
+  synth.strike(SECONDS / 3, 1)
+  return ctx.startRendering()
+}
+
+/**
+ * A strike on its own, to measure whether re-articulating a held chord clicks.
+ * A duck and a fast attack are steps waiting to happen, and a step is a click.
+ */
+async function renderStrum(wave: Wave): Promise<AudioBuffer> {
+  const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
+  const synth = buildSynth(ctx)
+  synth.setWave(wave)
+  synth.play(chord(1, 1, true))
+  synth.setVolume(1)
+  synth.strike(SECONDS / 2, 1)
   return ctx.startRendering()
 }
 
@@ -145,7 +198,7 @@ export async function runAudioCheck(): Promise<AudioReport> {
   }
 
   for (const wave of WAVES) {
-    levels.push(analyse(await renderMix(wave), `${wave} + kit`))
+    levels.push(analyse(await renderMix(wave), `${wave} + kit + strum`))
   }
 
   const transitions: TransitionMeasurement[] = []
@@ -160,9 +213,22 @@ export async function runAudioCheck(): Promise<AudioReport> {
     })
   }
 
+  const strikes: StrikeMeasurement[] = []
+  for (const wave of WAVES) {
+    const buffer = await renderStrum(wave)
+    const at = SECONDS / 2
+    transitions.push({
+      label: `${wave} strum`,
+      transitionStep: maxStep(buffer, at - 0.03, at + 0.05),
+      steadyStep: maxStep(buffer, 0.15, 0.4),
+    })
+    strikes.push({ label: `${wave} strum`, dip: dipAt(buffer, at) })
+  }
+
   return {
     levels,
     transitions,
+    strikes,
     worstPeak: Math.max(...levels.map((l) => l.peak)),
     totalClipped: levels.reduce((n, l) => n + l.clipped, 0),
   }

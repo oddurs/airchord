@@ -1,27 +1,7 @@
 import type { Fingers, HandState } from './vision'
 import { LEAN_BAND } from './chords'
 import { CONNECTIONS, DIAL, TIPS, frameOf, handTemplate, place } from './pose'
-
-/** One hue per scale degree, so the wave tells you where you are in the key. */
-const DEGREE_HUES: Record<number, string> = {
-  1: '232, 161, 61',
-  2: '210, 50, 120',
-  3: '180, 40, 150',
-  4: '240, 210, 40',
-  5: '245, 120, 30',
-  6: '230, 40, 40',
-  7: '100, 200, 250',
-}
-
-export interface WaveState {
-  degree: number
-  major: boolean
-  /** Right-hand fingers, 0-4. Zero draws nothing. */
-  voices: number
-  volume: number
-  tilt: number
-  now: number
-}
+import { paintWave, type WaveSpec } from './wave'
 
 export class Overlay {
   private ctx: CanvasRenderingContext2D
@@ -181,43 +161,10 @@ export class Overlay {
     ctx.stroke()
   }
 
-  /**
-   * The signature energy wave. Every channel of it is mapped to something the
-   * player is doing: hue is the scale degree, brightness is major vs minor, the
-   * number of stacked lines is the right-hand voicing, thickness is volume, and
-   * the jitter riding on the sine is tilt. Nothing here is decorative.
-   */
-  drawWave({ degree, major, voices, volume, tilt, now }: WaveState): void {
-    if (voices < 1) return
-    const { ctx, width: w, scale } = this
-
-    const centreY = this.height - 56 * scale
-    const maxThickness = (1 + volume * 8) * scale
-    const chaos = (tilt + 1) / 2
-    const jitterAmp = chaos * 25 * scale
-    const jitterFreq = (0.05 + chaos * 0.15) / scale
-    const time = now * 0.004
-    const hue = DEGREE_HUES[degree] ?? DEGREE_HUES[1]
-
-    ctx.save()
-    ctx.globalAlpha = major ? 1 : 0.7
-    ctx.strokeStyle = `rgb(${hue})`
-    ctx.shadowColor = `rgb(${hue})`
-    ctx.shadowBlur = 12 * scale
-
-    for (let line = 0; line < voices; line++) {
-      const y0 = centreY + (line - (voices - 1) / 2) * 12 * scale
-      ctx.lineWidth = Math.max(1, maxThickness - line * 0.5 * scale)
-      ctx.beginPath()
-      for (let x = 0; x <= w; x += 2 * scale) {
-        const sway = Math.sin(x * 0.005 / scale + time + line * 0.5) * 20 * scale
-        const jitter = Math.sin(x * jitterFreq + time * 3) * jitterAmp
-        const y = y0 + sway + jitter
-        if (x === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      }
-      ctx.stroke()
-    }
-    ctx.restore()
+  /** Draws the shared energy wave in the band the HUD keeps clear for it. */
+  drawWave(spec: Omit<WaveSpec, 'centreY' | 'scale'>): void {
+    // Sits high enough that a full-amplitude waveform is not clipped by the
+    // bottom of the frame, and still below the band the chord lockup occupies.
+    paintWave(this.ctx, { ...spec, centreY: this.height - 96 * this.scale, scale: this.scale })
   }
 }

@@ -17,6 +17,8 @@ const PROFILE = path.join(tmpdir(), `airchord-audio-${process.pid}`)
 const PEAK_CEILING = 1.0
 /** A chord change must not be louder in step terms than simply holding one. */
 const TRANSITION_TOLERANCE = 1.6
+/** A strike has to actually duck, or the chord is still a drone. */
+const STRIKE_DIP = 0.6
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -132,6 +134,14 @@ try {
       `  ${t.label.padEnd(22)} ${String(t.transitionStep).padStart(6)}` +
         `  ${String(t.steadyStep).padStart(6)}  ${ratio.toFixed(2).padStart(7)}${bad ? '  ✗' : ''}`,
     )
+  }
+
+  console.log('\n  articulation\n')
+  console.log('  case                      dip')
+  for (const strike of report.strikes ?? []) {
+    const bad = strike.dip > STRIKE_DIP
+    if (bad) failures.push(`${strike.label} only dips to ${strike.dip}`)
+    console.log(`  ${strike.label.padEnd(22)} ${String(strike.dip).padStart(6)}${bad ? '  ✗' : ''}`)
   }
 
   console.log(

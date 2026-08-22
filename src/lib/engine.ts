@@ -1,7 +1,7 @@
-import type { Fingers, HandState } from './vision'
-import { CONFIDENCE_FLOOR, FingerClassifier } from './classifier'
+import type { Fingers, HandState, Side } from './vision'
+import { FingerClassifier } from './classifier'
 import { buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Chord, type Key } from './chords'
-import { Committer, Grace, Smoothed } from './smoothing'
+import { Committer, Grace, Latch, Smoothed } from './smoothing'
 import type { PoseTarget } from './pose'
 import { Synth, type AudioBridge, type Wave } from './synth'
 import { Overlay } from './overlay'
@@ -28,6 +28,23 @@ const EXPRESSION_GRACE_MS = 60
 
 /** Below this, a hand is being rested rather than played. */
 const REST_HEIGHT = 0.06
+
+/**
+ * A hand in transit passes through every pose between where it started and
+ * where it is going. Rather than block those, moving simply demands a longer
+ * hold — so a deliberate slow change still lands, and a hand on its way
+ * somewhere never commits what it passes through.
+ */
+const MOVING_HOLD_MS = 420
+/** Mean landmark travel per frame, in frame widths, that counts as settled. */
+const STILL = 0.0035
+
+/** Confidence needs a band too, or a hand at the floor blinks in and out. */
+const CONFIDENT_ON = 0.7
+const CONFIDENT_OFF = 0.5
+
+/** Starting with your hands already raised should not begin at full volume. */
+const EASE_IN_MS = 700
 
 
 /** Everything the HUD renders, quantised so React only wakes on real change. */
@@ -65,22 +82,44 @@ export interface FrameInput {
 interface Identity {
   degree: number
   major: boolean
+  /**
+   * The octave belongs here, not with voicing. Commit speed should follow how
+   * much of the sound changes: a voicing moves one or two notes, an octave moves
+   * every one of them. Sitting in the fast tier is why octave jumps read as
+   * lurches.
+   */
+  octaveDown: boolean
 }
 
 interface Colour {
   voicing: number
-  octaveDown: boolean
 }
 
 /** Per-hand memory: finger latches plus smoothing on the continuous axes. */
 class HandStabiliser {
   private classifier = new FingerClassifier()
+  private previous: { x: number; y: number }[] | null = null
+  private motionFilter = new Smoothed(0.4)
   private rollFilter = new Smoothed(0.35)
   private tiltFilter = new Smoothed(0.3)
   private heightFilter = new Smoothed(0.4)
 
   fingers(hand: HandState): Fingers {
     return this.classifier.update(hand)
+  }
+
+  /** Mean landmark travel since the last frame: high in transit, near zero held. */
+  motion(hand: HandState): number {
+    const points = hand.points
+    let travel = 0
+    if (this.previous && this.previous.length === points.length) {
+      for (let i = 0; i < points.length; i++) {
+        travel += Math.hypot(points[i].x - this.previous[i].x, points[i].y - this.previous[i].y)
+      }
+      travel /= points.length
+    }
+    this.previous = points
+    return this.motionFilter.update(travel)
   }
 
   roll(value: number): number {
@@ -113,6 +152,13 @@ export class Engine {
   /** The pose a song is asking for, drawn on the hand that has to make it. */
   private target: PoseTarget | null = null
   private lastCommit: string | null = null
+  private confident = {
+    left: new Latch(CONFIDENT_ON, CONFIDENT_OFF),
+    right: new Latch(CONFIDENT_ON, CONFIDENT_OFF),
+  }
+  /** Kept when the right hand is away, so the octave does not flip on its exit. */
+  private octave = false
+  private startedAt = 0
   private lastFrame = 0
   private fps = new Smoothed(0.1)
   private observer: ((hands: HandState[]) => void) | null = null
@@ -121,8 +167,21 @@ export class Engine {
     this.overlay = new Overlay(canvas)
   }
 
-  start(): Promise<void> {
-    return this.synth.start()
+  async start(): Promise<void> {
+    await this.synth.start()
+    this.startedAt = performance.now()
+  }
+
+  /**
+   * Everything stops, now, without waiting out a hold. For the exits that are
+   * not gestures: the tab being hidden, the camera stream ending, the page going
+   * away. Sound continuing into an empty room is the least forgivable bug an
+   * instrument can have.
+   */
+  silence(): void {
+    this.identity.release()
+    this.held = null
+    this.synth.stop()
   }
 
   setWave(wave: Wave): void {
@@ -175,11 +234,27 @@ export class Engine {
     this.lastFrame = now
     if (interval > 0) this.fps.update(1000 / interval)
 
-    // A hand the tracker is unsure about should not be driving an instrument.
-    const seen = hands.filter((h) => h.confidence >= CONFIDENCE_FLOOR)
-    this.observer?.(seen)
-    const left = this.leftGrace.update(seen.find((h) => h.side === 'left') ?? null, now)
-    const right = this.rightGrace.update(seen.find((h) => h.side === 'right') ?? null, now)
+    // A hand only counts if the tracker is confident about it and the palm is
+    // actually in shot. Landmarks are extrapolated past the frame edge, so a
+    // hand sliding out of view keeps producing poses — garbage ones — and those
+    // were being played.
+    const raw = (side: Side) => hands.find((h) => h.side === side) ?? null
+    const usable = (side: Side) => {
+      const hand = raw(side)
+      const confident = this.confident[side].update(hand?.confidence ?? 0)
+      return hand && confident && hand.inFrame ? hand : null
+    }
+
+    const liveLeft = usable('left')
+    const liveRight = usable('right')
+    this.observer?.([liveLeft, liveRight].filter((h): h is HandState => h !== null))
+
+    // Grace keeps a hand alive through a dropped frame. What it must not do is
+    // authorise a change: sustaining what is sounding and choosing something new
+    // are different acts, and conflating them let a stale hand play a chord that
+    // was never made.
+    const left = this.leftGrace.update(liveLeft, now)
+    const right = this.rightGrace.update(liveRight, now)
 
     const leftFingers = left && this.stable.left.fingers(left)
     const rightFingers = right && this.stable.right.fingers(right)
@@ -190,18 +265,37 @@ export class Engine {
     this.isMajor = leanToMajor(left ? this.stable.left.roll(left.roll) : null, this.isMajor)
 
     // A lowered hand is an instruction and takes effect; an absent one is an
-    // accident and is covered by grace. Rest is only read from a hand we can see.
-    const resting = seen.some((h) => h.side === 'left') && leftHeight < REST_HEIGHT
-    const degree = leftFingers && !resting ? degreeFromFingers(leftFingers) : null
+    // accident and is covered by grace.
+    const resting = liveLeft !== null && leftHeight < REST_HEIGHT
+    const degree = liveLeft && leftFingers && !resting ? degreeFromFingers(leftFingers) : null
 
-    const identity = degree === null ? null : { degree, major: this.isMajor }
+    // The octave is held when the right hand is away, so putting it down does
+    // not silently transpose what is already sounding.
+    if (rightFingers) this.octave = rightFingers[0]
+
+    const identity =
+      degree === null ? null : { degree, major: this.isMajor, octaveDown: this.octave }
     const expected =
       identity !== null &&
       this.target !== null &&
       identity.degree === this.target.degree &&
       identity.major === this.target.major
-    const hold = expected ? EXPECTED_HOLD_MS : CHORD_HOLD_MS
-    const committed = this.identity.update(identity, identity && `${identity.degree}|${identity.major}`, now, hold)
+    const moving = liveLeft !== null && this.stable.left.motion(liveLeft) > STILL
+    const hold = expected ? EXPECTED_HOLD_MS : moving ? MOVING_HOLD_MS : CHORD_HOLD_MS
+
+    // Three cases, and they are deliberately distinct. A hand in view decides;
+    // a hand in grace sustains only; a hand that is truly gone releases at once
+    // rather than waiting out a hold that would keep sounding into an empty room.
+    let committed: Identity | null
+    if (liveLeft) {
+      const key = `${identity?.degree}|${identity?.major}|${identity?.octaveDown}`
+      committed = this.identity.update(identity, identity && key, now, hold)
+    } else if (left) {
+      committed = this.identity.hold()
+    } else {
+      this.identity.release()
+      committed = null
+    }
     const sounding = this.held ?? committed
 
     const commitKey = committed && `${committed.degree}|${committed.major}`
@@ -210,17 +304,14 @@ export class Engine {
       if (committed) this.onCommit?.(committed.degree, committed.major, now - hold)
     }
 
-    const wanted: Colour = {
-      voicing: rightFingers ? voicingFromFingers(rightFingers) : 1,
-      octaveDown: rightFingers?.[0] ?? false,
-    }
-    const colour =
-      this.colour.update(wanted, `${wanted.voicing}|${wanted.octaveDown}`, now) ?? wanted
+    const wanted: Colour = { voicing: rightFingers ? voicingFromFingers(rightFingers) : 1 }
+    const colour = this.colour.update(wanted, `${wanted.voicing}`, now) ?? wanted
 
     const chord = sounding && buildChord(key, { ...sounding, ...colour })
+    const easedVolume = volume * Math.min(1, (now - this.startedAt) / EASE_IN_MS)
     if (chord) {
       this.synth.play(chord.freqs)
-      this.synth.setVolume(volume)
+      this.synth.setVolume(easedVolume)
     } else {
       this.synth.stop()
     }

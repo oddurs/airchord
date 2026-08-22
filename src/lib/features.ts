@@ -49,6 +49,12 @@ export interface HandState {
   tilt: number
   /** 0 at the bottom of the frame, 1 at the top. */
   height: number
+  /**
+   * Whether the palm itself is inside the frame. Landmarks are extrapolated
+   * beyond the edges, so a hand sliding out of shot keeps producing poses —
+   * garbage ones — right up until it disappears.
+   */
+  inFrame: boolean
 }
 
 const WRIST = 0
@@ -99,6 +105,7 @@ export function describeLandmarks(
     roll: readRoll(points),
     tilt: readTilt(points),
     height: clamp01((VOLUME_BOTTOM - points[WRIST].y) / (VOLUME_BOTTOM - VOLUME_TOP)),
+    inFrame: [WRIST, INDEX_MCP, PINKY_MCP].every((i) => inside(points[i])),
   }
 }
 
@@ -192,6 +199,11 @@ function magnitude(v: Point3): number {
 
 function distance(a: Point3, b: Point3): number {
   return magnitude(subtract(a, b))
+}
+
+/** A little tolerance, so a hand at the very edge still counts as present. */
+function inside(p: Point): boolean {
+  return p.x > -0.02 && p.x < 1.02 && p.y > -0.02 && p.y < 1.02
 }
 
 export function clamp01(v: number): number {

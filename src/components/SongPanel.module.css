@@ -1,0 +1,238 @@
+/* Top centre: the one band of the frame nothing else claims. Controls hold the
+   left, the guide the right, the chord lockup and the wave the bottom. */
+.panel {
+  position: absolute;
+  top: clamp(20px, 3.5vh, 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(420px, 46vw);
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 30px rgba(0, 0, 0, 0.7);
+}
+
+.panel > * {
+  pointer-events: auto;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.name {
+  color: var(--ink-faint);
+}
+
+/* Native control, stripped to type — the same treatment as the key and tone. */
+.select {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0 14px 0 0;
+  margin: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink-full);
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.45) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 50%, transparent 50%);
+  background-position: right 4px center, right 0 center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.select option {
+  background: #101010;
+  color: #fff;
+}
+
+.modes {
+  display: flex;
+  gap: 16px;
+}
+
+.mode {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.mode[aria-pressed='true'] {
+  color: var(--ink-full);
+}
+
+/* The lane: now, and the three that are coming. Distance is opacity and size,
+   so the eye lands on the current bar without being told to. */
+/* Bottom-aligned so the pose dots form one line across the lane, whatever size
+   the chord above them is set at. */
+.lane {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(14px, 2.4vw, 30px);
+  margin: 0;
+  padding: 14px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+  width: 100%;
+}
+
+.now,
+.next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Fixed widths: the lane must not shuffle sideways as a two-letter chord
+   follows a one-letter one. */
+.now {
+  min-width: 74px;
+}
+
+.next {
+  min-width: 46px;
+}
+
+.now .chordName {
+  font-size: clamp(26px, 3.6vw, 38px);
+  color: var(--ink-full);
+}
+
+.next {
+  opacity: 0.42;
+}
+
+.next .chordName {
+  font-size: clamp(15px, 2vw, 20px);
+  color: var(--ink-strong);
+}
+
+.chord {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.14em;
+}
+
+.chordName {
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: var(--track-display);
+}
+
+.numeral {
+  font-size: 0.42em;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  margin-top: 0.35em;
+}
+
+/* Both hands for the current bar, drawn from the same template as the ghost
+   on the player's own hands. */
+.hands {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(28px, 5vw, 52px);
+  color: var(--ink-strong);
+}
+
+.hand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.handName {
+  color: var(--ink-faint);
+}
+
+.beats {
+  display: flex;
+  gap: 10px;
+}
+
+.beat,
+.beatOn {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(var(--ink), 0.18);
+}
+
+.beatOn {
+  background: var(--ink-full);
+  animation-name: pulse;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* The pip fades across its own beat, which makes the tempo visible between
+   beats rather than only on them. */
+@keyframes pulse {
+  from { transform: scale(1.6); opacity: 1; }
+  to { transform: scale(1); opacity: 0.45; }
+}
+
+.feedback {
+  margin: 0;
+  min-height: 1.4em;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.7em;
+  color: var(--ink-quiet);
+  font-size: 13px;
+}
+
+.resultName {
+  color: var(--ink-full);
+}
+
+.resultSaid {
+  color: var(--ink-quiet);
+}
+
+.quiet {
+  color: var(--ink-faint);
+}
+
+.summary {
+  margin: -6px 0 0;
+  color: var(--ink-faint);
+}
+
+/* Narrow screens: the panel keeps the top band and the guide is closed anyway. */
+@media (max-width: 760px) {
+  .panel {
+    top: auto;
+    bottom: clamp(180px, 26vh, 240px);
+    width: min(92vw, 420px);
+  }
+}

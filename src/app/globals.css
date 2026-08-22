@@ -1,0 +1,56 @@
+:root {
+  /* Chrome is monochrome on purpose: the energy wave is the only thing in the
+     interface allowed to carry colour, so hue always means something musical. */
+  --ink: 255, 255, 255;
+  --ink-full: rgb(var(--ink));
+  --ink-strong: rgba(var(--ink), 0.72);
+  --ink-quiet: rgba(var(--ink), 0.45);
+  --ink-faint: rgba(var(--ink), 0.26);
+  --hairline: rgba(var(--ink), 0.14);
+  --ground: #0a0a0a;
+
+  /* A single grotesque. Everything else is size, weight, tracking and opacity. */
+  --ui: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+
+  /* Display type is set tight; small type is set open. That inversion is what
+     keeps one family from reading as one flat voice. */
+  --track-display: -0.045em;
+  --track-body: -0.005em;
+
+  /* Small tracked uppercase is the only "label" treatment in the interface. */
+  --label-size: 10.5px;
+  --label-tracking: 0.18em;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--ground);
+  color: var(--ink-strong);
+  overflow: hidden;
+  font-family: var(--ui);
+  font-size: 13px;
+  letter-spacing: var(--track-body);
+  font-feature-settings: 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Live-updating numerals must not reflow as digits change. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+:focus-visible {
+  outline: 1px solid var(--ink-strong);
+  outline-offset: 3px;
+}

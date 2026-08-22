@@ -1,0 +1,114 @@
+.chord {
+  position: absolute;
+  left: clamp(20px, 4vw, 56px);
+  /* Clears the energy wave, which owns the bottom band of the frame. Type and
+     wave sharing a stripe read as clutter, not as layering. */
+  bottom: clamp(112px, 17vh, 152px);
+  z-index: 4;
+  display: block;
+  pointer-events: none;
+  /* The type sits over live video, so it carries its own contrast. */
+  text-shadow: 0 1px 40px rgba(0, 0, 0, 0.75);
+}
+
+.held {
+  display: block;
+  margin-bottom: clamp(8px, 1.2vh, 14px);
+  color: var(--ink-quiet);
+}
+
+.held::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 0.9em;
+  border-radius: 50%;
+  background: var(--ink-full);
+  vertical-align: middle;
+}
+
+.line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.14em;
+}
+
+.name {
+  font-size: clamp(68px, 13vw, 172px);
+  font-weight: 500;
+  line-height: 0.8;
+  letter-spacing: var(--track-display);
+  color: var(--ink-full);
+}
+
+.numeral {
+  font-size: clamp(20px, 3.2vw, 42px);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  /* Raised to sit near the cap height of the name, so it reads as an annotation
+     on the chord rather than a stray glyph on the baseline. */
+  margin-top: 0.5em;
+}
+
+.quality {
+  display: block;
+  margin-top: clamp(10px, 1.6vh, 18px);
+  color: var(--ink-quiet);
+}
+
+.octave::before {
+  content: '·';
+  margin: 0 0.6em;
+  color: var(--ink-faint);
+}
+
+.readout {
+  position: absolute;
+  right: clamp(20px, 4vw, 56px);
+  /* Shares the chord's baseline band — one horizontal alignment across the frame. */
+  bottom: clamp(112px, 17vh, 152px);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 18px;
+  pointer-events: none;
+}
+
+/* A rule, not a widget: volume as a line that fills. */
+.meter {
+  width: 1px;
+  height: clamp(80px, 18vh, 168px);
+  background: var(--hairline);
+  position: relative;
+}
+
+.level {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-strong);
+  transform-origin: bottom;
+  transition: transform 90ms linear;
+}
+
+.filter {
+  margin: 0;
+  display: flex;
+  gap: 0.9em;
+  color: var(--ink-quiet);
+}
+
+.filterLabel { color: var(--ink-faint); }
+
+.filterValue {
+  color: var(--ink-strong);
+  min-width: 3ch;
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  .meter { height: 72px; }
+  .readout { gap: 12px; }
+}

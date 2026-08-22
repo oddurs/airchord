@@ -1,0 +1,63 @@
+.guide {
+  position: absolute;
+  /* Right column, opposite the controls. The chord lockup owns the lower left,
+     and a reference panel must never sit on top of the primary readout. */
+  top: clamp(20px, 3.5vh, 40px);
+  right: clamp(20px, 4vw, 56px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  width: min(320px, 58vw);
+  max-height: calc(100dvh - 260px);
+  overflow-y: auto;
+  padding-left: 8px;
+  text-shadow: 0 1px 30px rgba(0, 0, 0, 0.8);
+}
+
+.section { display: block; }
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 500;
+  color: var(--ink-full);
+}
+
+.subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: var(--track-body);
+  text-transform: none;
+  color: var(--ink-faint);
+}
+
+.rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Gesture and result read as a pair, so they share a baseline and are
+   separated by space rather than by a rule or a box. */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.gesture { color: var(--ink-strong); }
+
+.effect {
+  margin: 0;
+  color: var(--ink-faint);
+  text-align: right;
+}

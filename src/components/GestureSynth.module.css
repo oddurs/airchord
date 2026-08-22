@@ -1,0 +1,87 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  background: var(--ground);
+}
+
+.video { display: none; }
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.startOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  border: 0;
+  background: var(--ground);
+  color: var(--ink-strong);
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  padding: 24px;
+}
+
+.startTitle {
+  font-size: clamp(46px, 9.5vw, 116px);
+  font-weight: 500;
+  line-height: 0.94;
+  letter-spacing: var(--track-display);
+  color: var(--ink-full);
+}
+
+.startStandfirst {
+  font-size: clamp(14px, 1.9vw, 18px);
+  font-weight: 400;
+  letter-spacing: var(--track-body);
+  color: var(--ink-quiet);
+  margin-top: 14px;
+}
+
+.startAction {
+  margin-top: clamp(36px, 6vh, 64px);
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  min-width: 200px;
+  color: var(--ink-full);
+}
+
+.startNote {
+  margin-top: 12px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+}
+
+.hint,
+.status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  margin: 0;
+  max-width: 34em;
+  text-align: center;
+  line-height: 1.7;
+  pointer-events: none;
+  text-shadow: 0 1px 30px rgba(0, 0, 0, 0.8);
+}
+
+.hint {
+  color: var(--ink-faint);
+}
+
+.status {
+  color: var(--ink-quiet);
+  font-size: 13px;
+}

@@ -1,0 +1,16 @@
+node_modules/
+
+# Build output
+.next/
+.next-verify/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Generated locally and in CI by `npm run assets` — 41MB of vendored runtime.
+public/mediapipe/
+
+# Local development certificates; never shared.
+certs/
+
+.DS_Store

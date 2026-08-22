@@ -20,14 +20,29 @@ const TRANSITION_TOLERANCE = 1.6
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// CI runners run as root in a container, where Chrome refuses to start without
+// these. Without them it exits immediately and the only symptom is a debugging
+// port that never opens.
+const SANDBOXED = process.env.CI
+  ? ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+  : []
+
 const chrome = spawn(CHROME, [
   '--headless=new',
   `--remote-debugging-port=${PORT}`,
   '--ignore-certificate-errors',
   '--mute-audio',
+  ...SANDBOXED,
   `--user-data-dir=${PROFILE}`,
   'about:blank',
-], { stdio: 'ignore' })
+], { stdio: ['ignore', 'ignore', 'pipe'] })
+
+// Keep Chrome's own complaint; "did not expose a debugging port" on its own
+// says nothing about why.
+let chromeStderr = ''
+chrome.stderr?.on('data', (chunk) => {
+  chromeStderr += chunk.toString()
+})
 
 function cleanup() {
   chrome.kill()
@@ -48,7 +63,12 @@ try {
       await wait(300)
     }
   }
-  if (!targets) throw new Error('Chrome did not expose a debugging port')
+  if (!targets) {
+    const detail = chromeStderr.trim().split('\n').slice(-3).join('\n      ')
+    throw new Error(
+      `Chrome did not expose a debugging port${detail ? `\n      ${detail}` : ''}`,
+    )
+  }
 
   const page = targets.find((t) => t.type === 'page')
   const ws = new WebSocket(page.webSocketDebuggerUrl)

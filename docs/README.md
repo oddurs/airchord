@@ -13,8 +13,10 @@ shape it. This is an independent reimplementation of **Gesture Synth**.
 | [06-accuracy-plan.md](./06-accuracy-plan.md) | Why gesture accuracy is poor, and the plan to make the classifier durable |
 | [07-project-setup.md](./07-project-setup.md) | Naming, git and worktree workflow, licensing, GitHub Pages deploy, CI |
 | [08-experience-plan.md](./08-experience-plan.md) | Ghost input, chord transitions, the octave, and making silence a real state |
-| [07-songs-plan.md](./07-songs-plan.md) | Play-along songs and tutorials: transport, drums, chord lane, ghost hand |
-| [08-playalong-plan.md](./08-playalong-plan.md) | Making the play-along authentic: arrangement, groove, MIDI import, lyrics |
+| [09-delight-plan.md](./09-delight-plan.md) | Four voices, and the first sixty seconds |
+| [10-songs-plan.md](./10-songs-plan.md) | Play-along songs and tutorials: transport, drums, chord lane, ghost hands |
+| [11-playalong-plan.md](./11-playalong-plan.md) | Making the play-along authentic: arrangement, groove, MIDI import, lyrics |
+
 
 ## Attribution and licence
 

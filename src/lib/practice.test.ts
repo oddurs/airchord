@@ -41,7 +41,7 @@ const target = (degree: number, major: boolean): Target => ({
   degree,
   major,
   fingers: fingersForDegree(degree),
-  right: fingersForVoicing(1, false),
+  right: fingersForVoicing(1),
   name: 'C',
   numeral: 'I',
 })

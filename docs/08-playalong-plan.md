@@ -7,6 +7,10 @@ is not a play-along: nothing about it says *Creep* rather than *four bars in G*.
 This plan is about the gap between those two, and it is mostly about three things: **the rhythm**,
 **where authentic material comes from**, and **the words**.
 
+**Status: P1 and P2 are built.** Songs now have sections, an arrangement and an ending, the chord is
+articulated rather than held, and the drums have a feel. What that took, and what it caught, is at
+the end of this document.
+
 ## Where it actually is
 
 | | Now | What a play-along needs |
@@ -52,7 +56,7 @@ rather than after.
 
 ## Sprints
 
-### P1 — The arrangement
+### P1 — The arrangement ✅
 
 Everything else needs a song to have a shape. Today `Song.bars` is a loop with no beginning or end.
 
@@ -70,7 +74,7 @@ Everything else needs a song to have a shape. Today `Song.bars` is a loop with n
 *Done when:* Creep plays from its intro to its outro and stops, the schema is round-tripped in tests,
 and a song can change chord twice in a bar.
 
-### P2 — The groove
+### P2 — The groove ✅
 
 The sprint that makes it feel like a song rather than a grid.
 
@@ -183,6 +187,65 @@ Candidates, chosen for what they stress rather than for taste:
 
 Two of these are not in 4/4, which is the point: `beatsPerBar` exists and has never been anything but
 four, and code that has only run on one value is untested rather than general.
+
+## What was built
+
+### The arrangement
+
+`Song.bars` became `Song.sections`, and a bar became a list of *changes* rather than a chord. Two
+consequences fell out of that and both are improvements nobody asked for:
+
+- **The unit of grading is now a chord change, not a bar.** The old grader judged the previous bar
+  one beat into the next, which was a rule with a bar-shaped assumption baked into it. Each change
+  now schedules its own judgement one beat after it is due, and a bar with two chords in it grades
+  twice without a special case anywhere.
+- **Learn mode walks the song's *distinct* bars.** Sections that reuse a bar list share it by
+  reference, so `loopOf` collapses Creep's twenty-four repetitions back to the four bars there are to
+  learn — while a song whose chorus really is different still teaches both.
+
+Songs also print their numerals against **their own tonic**. Zombie is stored as degrees of G,
+because that is what the fingers do; it now reads `i VI III VII`, which is what a musician would
+write. Storage and notation were the same thing and should not have been.
+
+The arrangements themselves are playable structures rather than transcriptions — the chords are the
+songs' own, the section lengths are musically sensible and have not been checked bar-for-bar against
+a recording. `songs.ts` says so where someone might otherwise assume it was measured.
+
+### The groove, and what measuring it caught
+
+Articulation went in as designed: every strike ducks the chord, then the voices attack low to high,
+which is the order a hand crosses strings. The audio harness grew a third measurement for it — the
+deepest short-window dip across a strike, against the level the chord was holding — and **the first
+implementation failed it at 0.78–1.05**, meaning the chord was never actually getting quieter.
+
+The cause is worth keeping: the duck was staggered along with the attack, so at any instant three
+voices were covering for the one that was quiet. Ducking together and attacking in sequence takes the
+dip to **0.43–0.51**, which is an articulation. It was inaudible reasoning and a visible number; the
+number is what settled it, and it is now a check that fails the build.
+
+| Measurement | Result |
+|---|---|
+| Strike dip against held level | 0.43 – 0.51 (must be under 0.6) |
+| Strike step vs steady step | 1.00 — the duck and attack introduce no discontinuity |
+| Chord + kit + strum, worst peak | 0.824 of full scale, zero clipped samples |
+
+The rest of P2 is data: four intensities that differ by *arrangement* rather than volume, a fill on
+the last bar before a section changes, a crash on the downbeat that follows, swing on the offbeat
+eighths only, and a few milliseconds of jitter on every hit. `silent` still strums — an intro with no
+drums is not an intro with no instrument.
+
+### Expectation-biased commit
+
+`Committer.update` takes a hold for the frame, and the engine passes a shorter one — 45 ms against
+100 — when the pose the player is making is the one the song is about to ask for. It buys latency
+with *expectation* rather than with certainty: the only chord it will accept early is the one already
+predicted, and the player still has to make it. Nothing outside a song can use this, which is exactly
+why it did not exist before.
+
+### What is next, and what got worse
+
+**P6 is more urgent than it was.** The panel now carries a section line, a lane, beat pips, two hands
+and a feedback line, and it is close to the height of the frame. Every remaining sprint adds to it.
 
 ## Sequence
 

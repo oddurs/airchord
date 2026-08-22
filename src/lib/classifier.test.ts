@@ -84,3 +84,14 @@ test('an upright hand always reads major, whatever it played before', () => {
     assert.equal(major, true, `${sample.label} stayed minor while held upright`)
   }
 })
+
+test('hands recorded in shot read as in frame', () => {
+  // The frame-edge guard rejects hands sliding out of view, whose landmarks are
+  // extrapolated and produce garbage poses. It must not reject ordinary play.
+  const held = dataset!.samples.filter((s) => s.trusted !== false)
+  for (const sample of held) {
+    const inFrame = sample.frames.filter((f) => describeLandmarks(f, sample.side).inFrame).length
+    const share = inFrame / sample.frames.length
+    assert.ok(share > 0.9, `${sample.label} (${sample.side}) read in frame only ${Math.round(share * 100)}% of the time`)
+  }
+})

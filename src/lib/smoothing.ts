@@ -74,6 +74,22 @@ export class Committer<T> {
     return this.value
   }
 
+  /**
+   * Keeps whatever is committed without advancing the clock or accepting a new
+   * candidate. Sustaining through a dropped tracking frame and authorising a
+   * change are different acts: conflating them let a stale hand commit a chord
+   * that was never played.
+   */
+  hold(): T | null {
+    return this.value
+  }
+
+  /** Drops the committed value immediately, without waiting out a hold. */
+  release(): void {
+    this.value = null
+    this.candidate = null
+  }
+
   get current(): T | null {
     return this.value
   }

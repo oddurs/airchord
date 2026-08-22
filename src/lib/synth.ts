@@ -8,6 +8,12 @@ const DETUNE_CENTS = 7
 const PAN_SPREAD = 0.55
 /** Long enough to hide the transition, short enough not to read as articulation. */
 const FADE = 0.014
+/**
+ * When a change keeps no common tones — an octave jump moves every voice — the
+ * seam is far wider and a 14ms crossfade reads as a lurch. Longer here is not
+ * sloppier: it is proportionate to how much of the sound is being replaced.
+ */
+const REVOICE_FADE = 0.09
 
 /** Slow, shallow, mutually prime: a held chord breathes instead of sitting still. */
 const DRIFT_RATES = [0.07, 0.11, 0.13]
@@ -125,14 +131,10 @@ class Voice {
   }
 
   /** Retunes while silent, then fades in — so the pitch change itself is inaudible. */
-  attack(freq: number, at: number): void {
+  attack(freq: number, at: number, fade = FADE): void {
     this.freq = freq
     for (const osc of this.oscillators) osc.frequency.setValueAtTime(freq, at)
-    for (const gain of this.gains) {
-      gain.gain.cancelScheduledValues(at)
-      gain.gain.setValueAtTime(gain.gain.value, at)
-      gain.gain.linearRampToValueAtTime(this.level, at + FADE)
-    }
+    this.ramp(this.level, at, fade)
   }
 
   /**
@@ -154,12 +156,16 @@ class Voice {
     }
   }
 
-  release(at: number): void {
+  release(at: number, fade = FADE): void {
     this.freq = null
+    this.ramp(0, at, fade)
+  }
+
+  private ramp(to: number, at: number, fade: number): void {
     for (const gain of this.gains) {
       gain.gain.cancelScheduledValues(at)
       gain.gain.setValueAtTime(gain.gain.value, at)
-      gain.gain.linearRampToValueAtTime(0, at + FADE)
+      gain.gain.linearRampToValueAtTime(to, at + fade)
     }
   }
 }
@@ -297,13 +303,18 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       const now = ctx.currentTime
       const wanted = freqs.map((f) => Math.round(f * 10) / 10)
 
+      // Nothing held over means the whole chord is being replaced, and the
+      // crossfade should be proportionate to that rather than to a single note.
+      const retained = wanted.some((f) => voices.some((v) => v.freq === f))
+      const fade = retained ? FADE : REVOICE_FADE
+
       for (const voice of voices) {
-        if (voice.freq !== null && !wanted.includes(voice.freq)) voice.release(now)
+        if (voice.freq !== null && !wanted.includes(voice.freq)) voice.release(now, fade)
       }
       for (const freq of wanted) {
         if (voices.some((v) => v.freq === freq)) continue
         const free = voices.find((v) => !v.busy)
-        free?.attack(freq, now)
+        free?.attack(freq, now, fade)
       }
 
       rootHz = Math.min(...wanted)

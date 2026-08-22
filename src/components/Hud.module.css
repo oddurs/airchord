@@ -112,3 +112,44 @@
   .meter { height: 72px; }
   .readout { gap: 12px; }
 }
+
+/* Register: three zones the chord hand moves between, opposite the volume rail
+   so the two read as a pair rather than as decoration. */
+.register {
+  position: absolute;
+  left: clamp(20px, 4vw, 56px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: clamp(96px, 22vh, 200px);
+  pointer-events: none;
+}
+
+.zone {
+  flex: 1;
+  width: 1px;
+  background: var(--hairline);
+}
+
+.zoneOn {
+  width: 2px;
+  margin-left: -0.5px;
+  background: var(--ink-strong);
+}
+
+/* Where the hand actually is, so the boundary is learnable rather than guessed. */
+.hand {
+  position: absolute;
+  left: -4px;
+  width: 9px;
+  height: 1px;
+  background: var(--ink-full);
+  transition: bottom 90ms linear;
+}
+
+@media (max-width: 600px) {
+  .register { height: 84px; left: 14px; }
+}

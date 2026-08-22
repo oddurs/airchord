@@ -66,7 +66,8 @@ export interface Gesture {
   degree: number | null
   major: boolean
   voicing: number
-  octaveDown: boolean
+  /** -1 an octave down, 0 as written, +1 an octave up. */
+  octave: number
 }
 
 export interface Chord {
@@ -76,7 +77,8 @@ export interface Chord {
   numeral: string
   /** e.g. "Major" */
   quality: string
-  octaveDown: boolean
+  /** -1 an octave down, 0 as written, +1 an octave up. */
+  octave: number
   /** 1-7, for colour */
   degree: number
   /** 1-4, right-hand finger count */
@@ -130,7 +132,7 @@ export function leanToMajor(roll: number | null, wasMajor: boolean): boolean {
   return wasMajor
 }
 
-/** Right-hand voicing: the four non-thumb fingers. The thumb is the octave switch. */
+/** Right-hand voicing: the four non-thumb fingers. */
 export function voicingFromFingers(fingers: Fingers): number {
   const count = fingers.slice(1).filter(Boolean).length
   return Math.min(4, Math.max(1, count))
@@ -140,7 +142,7 @@ export function buildChord(key: Key, g: Gesture): Chord | null {
   if (g.degree === null) return null
 
   const step = g.degree - 1
-  const root = key.root + DEGREE_SEMITONES[step] - (g.octaveDown ? 12 : 0)
+  const root = key.root + DEGREE_SEMITONES[step] + g.octave * 12
   const intervals = g.major ? VOICINGS[g.voicing].major : VOICINGS[g.voicing].minor
   const [majorName, minorName] = QUALITY_NAMES[g.voicing]
 
@@ -148,7 +150,7 @@ export function buildChord(key: Key, g: Gesture): Chord | null {
     name: key.degrees[step] + (g.major ? '' : 'm'),
     numeral: numeralAt(step, g.major),
     quality: g.major ? majorName : minorName,
-    octaveDown: g.octaveDown,
+    octave: g.octave,
     degree: g.degree,
     voicing: g.voicing,
     major: g.major,

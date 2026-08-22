@@ -316,8 +316,8 @@ export class PracticeSession {
     for (const { event, offset } of eventsOn(placed.bar, beat.beat)) {
       const target = this.targetFor(placed, event)
       const at = time + offset * spb
-      this.at(at, (atMs) => this.arrive(target, atMs))
-      this.at(at + spb, (_, dueMs) => this.judge(target, dueMs), at)
+      this.at(at, () => this.arrive(target))
+      this.at(at + spb, (_, dueMs) => this.judge(target, dueMs, spb * 1000), at)
     }
   }
 
@@ -345,12 +345,14 @@ export class PracticeSession {
     this.publish()
   }
 
-  private arrive(target: Target, _atMs: number): void {
+  /** A change inside a bar is current from the moment it lands, not from the
+   *  next whole beat. */
+  private arrive(target: Target): void {
+    this.beat = target.beat
     this.publish()
   }
 
-  private judge(target: Target, dueMs: number): void {
-    const beatMs = this.timeline.secondsPerBeatAt(0) * 1000
+  private judge(target: Target, dueMs: number, beatMs: number): void {
     const result = gradeChange(target, this.commits, dueMs, beatMs)
     this.result = result
     this.record(result)
@@ -410,7 +412,7 @@ export class PracticeSession {
       // Every song here is accompaniment, so the colour hand holds root position
       // throughout. It is still worth showing: a player who does not know what
       // to do with their right hand does something with it anyway.
-      right: fingersForVoicing(chord.voicing, chord.octaveDown),
+      right: fingersForVoicing(chord.voicing),
       name: chord.name,
       numeral: numeralOf(this.song, chord),
     }
@@ -432,6 +434,11 @@ export class PracticeSession {
     return lane
   }
 
+  /** Where the transport is, in its own beat numbering. */
+  private get beatIndex(): number {
+    return this.timeline.countInBeats + Math.max(0, this.bar) * this.song.beatsPerBar + Math.floor(this.beat)
+  }
+
   get state(): PracticeState {
     const placed = this.bar >= 0 ? this.chart[this.bar] : null
     const next = placed ? this.chart.find((p) => p.index > placed.index && p.section !== placed.section) : null
@@ -444,7 +451,7 @@ export class PracticeSession {
       countIn: this.countIn,
       bar: this.bar,
       beat: this.beat,
-      beatMs: this.timeline.secondsPerBeatAt(0) * 1000,
+      beatMs: this.timeline.secondsPerBeatAt(this.beatIndex) * 1000,
       section: placed?.section.name ?? null,
       nextSection: next?.section.name ?? null,
       barsToNextSection: next && placed ? next.index - placed.index : null,

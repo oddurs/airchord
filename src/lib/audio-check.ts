@@ -50,7 +50,7 @@ export interface AudioReport {
 const KEY = KEYS.find((k) => k.name === 'E')!
 
 function chord(degree: number, voicing: number, major: boolean): number[] {
-  return buildChord(KEY, { degree, major, voicing, octaveDown: false })!.freqs
+  return buildChord(KEY, { degree, major, voicing, octave: 0 })!.freqs
 }
 
 function analyse(buffer: AudioBuffer, label: string): Measurement {

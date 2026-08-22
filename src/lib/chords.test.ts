@@ -8,7 +8,7 @@ const hand = (thumb: boolean, index: boolean, middle: boolean, ring: boolean, pi
   [thumb, index, middle, ring, pinky]
 
 const play = (over: Partial<Gesture> = {}) =>
-  buildChord(E, { degree: 1, major: true, voicing: 1, octaveDown: false, ...over })!
+  buildChord(E, { degree: 1, major: true, voicing: 1, octave: 0, ...over })!
 
 const ratio = (a: number, b: number) => Math.round(12 * Math.log2(a / b))
 
@@ -27,7 +27,7 @@ test('VI and VII are matched as shapes, not counts', () => {
 
 test('a closed hand is silence, not a chord', () => {
   assert.equal(degreeFromFingers(hand(false, false, false, false, false)), null)
-  assert.equal(buildChord(E, { degree: null, major: true, voicing: 1, octaveDown: false }), null)
+  assert.equal(buildChord(E, { degree: null, major: true, voicing: 1, octave: 0 }), null)
 })
 
 test('the right hand counts fingers without the thumb, clamped to a voicing', () => {
@@ -58,12 +58,12 @@ test('voicings follow the left hand into minor', () => {
   assert.deepEqual(dim.freqs.map((f) => ratio(f, dim.freqs[0])), [0, 3, 6, 9])
 })
 
-test('an extended thumb drops the whole chord an octave', () => {
+test('the register transposes the whole chord by an octave', () => {
   const normal = play()
-  const low = play({ octaveDown: true })
+  const low = play({ octave: -1 })
   assert.equal(ratio(low.freqs[0], normal.freqs[0]), -12)
-  assert.equal(low.octaveDown, true)
-  assert.equal(normal.octaveDown, false)
+  assert.equal(low.octave, -1)
+  assert.equal(normal.octave, 0)
 })
 
 test('the sharp keys sit an octave down so they do not turn shrill', () => {

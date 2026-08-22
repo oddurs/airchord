@@ -12,6 +12,7 @@ shape it. This is an independent reimplementation of **Gesture Synth**.
 | [05-instrument-plan.md](./05-instrument-plan.md) | Latency budget and the plan to make it playable as an instrument |
 | [06-accuracy-plan.md](./06-accuracy-plan.md) | Why gesture accuracy is poor, and the plan to make the classifier durable |
 | [07-project-setup.md](./07-project-setup.md) | Naming, git and worktree workflow, licensing, GitHub Pages deploy, CI |
+| [08-experience-plan.md](./08-experience-plan.md) | Ghost input, chord transitions, the octave, and making silence a real state |
 | [07-songs-plan.md](./07-songs-plan.md) | Play-along songs and tutorials: transport, drums, chord lane, ghost hand |
 | [08-playalong-plan.md](./08-playalong-plan.md) | Making the play-along authentic: arrangement, groove, MIDI import, lyrics |
 

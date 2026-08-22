@@ -56,10 +56,10 @@ test('the frame is read from the hand, so handedness never appears in the maths'
   assert.equal(frameOf(left).up.y, frameOf(right).up.y)
 })
 
-test('every voicing has a pose, thumb included', () => {
+test('every voicing has a pose, and the thumb is never part of it', () => {
   for (let voicing = 1; voicing <= 4; voicing++) {
-    assert.equal(voicingFromFingers(fingersForVoicing(voicing, false)), voicing)
-    assert.equal(fingersForVoicing(voicing, true)[0], true)
+    assert.equal(voicingFromFingers(fingersForVoicing(voicing)), voicing)
+    assert.equal(fingersForVoicing(voicing)[0], false, 'the thumb has no job on this hand')
   }
 })
 

@@ -412,7 +412,7 @@ export class PracticeSession {
       // Every song here is accompaniment, so the colour hand holds root position
       // throughout. It is still worth showing: a player who does not know what
       // to do with their right hand does something with it anyway.
-      right: fingersForVoicing(chord.voicing, chord.octaveDown),
+      right: fingersForVoicing(chord.voicing),
       name: chord.name,
       numeral: numeralOf(this.song, chord),
     }

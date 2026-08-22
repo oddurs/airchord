@@ -89,6 +89,12 @@ function open(name) {
     if (!existsSync(from) || existsSync(to)) continue
     mkdirSync(path.dirname(to), { recursive: true })
     symlinkSync(from, to)
+    // A symlink is a file, so a .gitignore rule written with a trailing slash
+    // does not cover it — and the first lane committed both of these before
+    // anyone noticed. Check rather than trust.
+    if (quiet(`git check-ignore -q ${JSON.stringify(to)}`, where) === null) {
+      console.error(`\n  WARNING: ${dir} is not ignored in this lane. Add it to .gitignore without a trailing slash.`)
+    }
   }
 
   console.log(`

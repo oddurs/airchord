@@ -1,13 +1,14 @@
 'use client'
 
 import { KEYS } from '@/lib/chords'
-import type { Wave } from '@/lib/synth'
+import { TIMBRES, type TimbreId } from '@/lib/timbre'
 import styles from './Controls.module.css'
 
 interface Props {
   keyIndex: number
   onKeyChange: (index: number) => void
-  onWaveChange: (wave: Wave) => void
+  timbre: TimbreId
+  onTimbreChange: (id: TimbreId) => void
   guideOpen: boolean
   onToggleGuide: () => void
   onOpenAbout: () => void
@@ -15,16 +16,11 @@ interface Props {
   onToggleLatch: () => void
 }
 
-const WAVES: [Wave, string][] = [
-  ['triangle', 'Warm'],
-  ['sawtooth', 'Bright'],
-  ['square', 'Retro'],
-]
-
 export default function Controls({
   keyIndex,
   onKeyChange,
-  onWaveChange,
+  timbre,
+  onTimbreChange,
   guideOpen,
   onToggleGuide,
   onOpenAbout,
@@ -46,10 +42,14 @@ export default function Controls({
 
       <label className={styles.field}>
         <span className={`${styles.name} label`}>Tone</span>
-        <select className={styles.select} defaultValue="triangle" onChange={(e) => onWaveChange(e.target.value as Wave)}>
-          {WAVES.map(([value, title]) => (
-            <option key={value} value={value}>
-              {title}
+        <select
+          className={styles.select}
+          value={timbre}
+          onChange={(e) => onTimbreChange(e.target.value as TimbreId)}
+        >
+          {TIMBRES.map(({ id, name, note }) => (
+            <option key={id} value={id}>
+              {name} · {note.toLowerCase()}
             </option>
           ))}
         </select>

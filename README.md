@@ -17,7 +17,8 @@ npm install
 npm run dev
 ```
 
-Then open **https://localhost:9191**.
+Then open **https://localhost:9191**. The first visit shows you around in about a minute — five
+things, one at a time, each drawn on your own hand. `?tour` runs it again.
 
 The dev server is HTTPS and binds to every interface, so it prints a LAN address too — `getUserMedia`
 only works in a secure context, and on a phone `localhost` won't do.
@@ -42,6 +43,21 @@ only works in a secure context, and on a phone `localhost` won't do.
 The wrist roll has a natural dead zone — a hand held normally reads as neutral, so the filter only
 engages when you mean it. The quality tilt overrides the key: degree III is diatonically minor, but
 leaning the other way forces it major, which is how borrowed chords fall out of a wrist flick.
+
+## The voices
+
+**Tone** picks one of four. They are parameter sets, not waveforms — unison spread, sub weight,
+saturation, where the filter sits, how wet it is, and above all what happens when a chord is struck.
+
+| | |
+|---|---|
+| **Felt** | Hammered and soft. Ducks deep and recovers slowly, the shape of something struck. |
+| **Glass** | Wide and slow. Barely ducks: a pad notices the beat rather than marking it. |
+| **Nylon** | Plucked and dry. The deepest duck, the longest ring-down, and the notes arrive one after another. |
+| **Organ** | Steady and stacked. No spread at all, and back to full immediately — a key is down or it is up. |
+
+Your choice is remembered, along with the key. Nothing else is stored, and none of it leaves the
+device.
 
 ## Playing a song
 

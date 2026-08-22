@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useGestureSynth } from '@/hooks/useGestureSynth'
+import { useOnboarding } from '@/hooks/useOnboarding'
 import { usePractice } from '@/hooks/usePractice'
 import About from './About'
 import CapturePanel from './CapturePanel'
@@ -10,6 +11,7 @@ import Guide from './Guide'
 import Landing from './Landing'
 import Hud from './Hud'
 import SongPanel from './SongPanel'
+import Welcome from './Welcome'
 import styles from './GestureSynth.module.css'
 
 export default function GestureSynth() {
@@ -23,7 +25,8 @@ export default function GestureSynth() {
     error,
     keyIndex,
     setKeyIndex,
-    setWave,
+    timbre,
+    setTimbre,
     start,
     toggleLatch,
     observe,
@@ -31,6 +34,9 @@ export default function GestureSynth() {
     onCommit,
     audio,
   } = useGestureSynth()
+  // Shown once, and it owns the screen while it runs: a first instruction
+  // competing with a song lane is two things asking to be read at once.
+  const tour = useOnboarding({ hud, running: phase === 'running', setTarget })
   const practice = usePractice({
     setTarget,
     onCommit,
@@ -70,7 +76,8 @@ export default function GestureSynth() {
       <Controls
         keyIndex={keyIndex}
         onKeyChange={setKeyIndex}
-        onWaveChange={setWave}
+        timbre={timbre}
+        onTimbreChange={setTimbre}
         guideOpen={guideOpen}
         onToggleGuide={() => setGuideOpen((open) => !open)}
         onOpenAbout={() => setAboutOpen(true)}
@@ -78,7 +85,7 @@ export default function GestureSynth() {
         onToggleLatch={toggleLatch}
       />
       {guideOpen && !capturing && <Guide />}
-      {phase === 'running' && !capturing && (
+      {phase === 'running' && !capturing && !tour.active && (
         <SongPanel
           songs={practice.songs}
           song={practice.song}
@@ -93,7 +100,11 @@ export default function GestureSynth() {
       {capturing && phase === 'running' && <CapturePanel observe={observe} />}
       <Hud hud={hud} />
 
-      {phase === 'running' && hud.hands === 0 && (
+      {tour.active && (
+        <Welcome step={tour.step} index={tour.index} total={tour.total} finished={tour.finished} onSkip={tour.skip} />
+      )}
+
+      {phase === 'running' && hud.hands === 0 && !tour.active && (
         <p className={`${styles.hint} label`}>Hold both hands up to the camera</p>
       )}
       {phase === 'error' && <p className={styles.status}>{error}</p>}

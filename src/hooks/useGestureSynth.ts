@@ -5,7 +5,8 @@ import { createTracker, loadModel, readHands } from '@/lib/vision'
 import { KEYS } from '@/lib/chords'
 import { Engine, IDLE_HUD, hudEqual, type Hud } from '@/lib/engine'
 import type { PoseTarget } from '@/lib/pose'
-import type { Wave } from '@/lib/synth'
+import { DEFAULT_TIMBRE, type TimbreId } from '@/lib/timbre'
+import { recall, remember } from '@/lib/remember'
 
 const DEFAULT_KEY = KEYS.findIndex((k) => k.name === 'E')
 
@@ -62,6 +63,7 @@ export function useGestureSynth() {
 
   const [hud, setHud] = useState<Hud>(IDLE_HUD)
   const [keyIndex, setKeyIndex] = useState(DEFAULT_KEY)
+  const [timbre, setTimbreState] = useState<TimbreId>(DEFAULT_TIMBRE)
   const [phase, setPhase] = useState<Phase>('idle')
   const [stage, setStage] = useState<Stage>('audio')
   const [progress, setProgress] = useState(0)
@@ -70,6 +72,12 @@ export function useGestureSynth() {
   useEffect(() => {
     keyRef.current = keyIndex
   }, [keyIndex])
+
+  useEffect(() => {
+    const key = recall('key', DEFAULT_KEY)
+    if (key >= 0 && key < KEYS.length) setKeyIndex(key)
+    setTimbreState(recall<TimbreId>('timbre', DEFAULT_TIMBRE))
+  }, [])
 
   const start = useCallback(async () => {
     const video = videoRef.current
@@ -172,7 +180,11 @@ export function useGestureSynth() {
     }
   }, [])
 
-  const setWave = useCallback((wave: Wave) => engineRef.current?.setWave(wave), [])
+  const setTimbre = useCallback((id: TimbreId) => {
+    setTimbreState(id)
+    remember('timbre', id)
+    engineRef.current?.setTimbre(id)
+  }, [])
 
   const observe = useCallback((cb: Parameters<Engine['observe']>[0]) => {
     engineRef.current?.observe(cb)
@@ -203,7 +215,8 @@ export function useGestureSynth() {
     error,
     keyIndex,
     setKeyIndex,
-    setWave,
+    timbre,
+    setTimbre,
     start,
     stage,
     progress,

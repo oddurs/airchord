@@ -38,6 +38,11 @@ export default function GestureSynth() {
     calibration,
     readDiagnostics,
     retry,
+    midiStatus,
+    midiPorts,
+    midiPort,
+    enableMidi,
+    selectMidiPort,
     setTarget,
     onCommit,
     audio,
@@ -112,6 +117,11 @@ export default function GestureSynth() {
         recording={recorder.recording}
         recordingSeconds={recorder.seconds}
         onToggleRecording={recorder.toggle}
+        midiStatus={midiStatus}
+        midiPorts={midiPorts}
+        midiPort={midiPort}
+        onEnableMidi={() => void enableMidi()}
+        onSelectMidiPort={selectMidiPort}
       />
       {guideOpen && !capturing && <Guide />}
       {phase === 'running' && songsOpen && !capturing && !tour.active && (

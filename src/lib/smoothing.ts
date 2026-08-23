@@ -10,17 +10,31 @@
 export class Latch {
   private readonly on: number
   private readonly off: number
+  private readonly engageAfter: number
   private state: boolean
+  private above = 0
 
-  constructor(on: number, off: number, initial = false) {
+  /**
+   * `engageAfter` makes engaging slower than releasing. Where the two mistakes
+   * cost differently, the filter should be asymmetric: a spurious thumb shifts
+   * every scale degree, while a missed one costs only degrees V and VII. Three
+   * consecutive frames cuts spurious thumbs eightfold on the captured data.
+   */
+  constructor(on: number, off: number, initial = false, engageAfter = 1) {
     this.on = on
     this.off = off
     this.state = initial
+    this.engageAfter = Math.max(1, engageAfter)
   }
 
   update(value: number): boolean {
-    if (value >= this.on) this.state = true
-    else if (value <= this.off) this.state = false
+    if (value >= this.on) {
+      this.above++
+      if (this.above >= this.engageAfter) this.state = true
+    } else {
+      this.above = 0
+      if (value <= this.off) this.state = false
+    }
     return this.state
   }
 }

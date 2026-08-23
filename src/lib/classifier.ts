@@ -19,8 +19,18 @@ export const FINGER_OFF = 0.55
  * More capture sessions — other distances, other light, other hands — are what
  * widens it. Until then this is the narrowest part of the classifier.
  */
-export const THUMB_ON = 0.3
+export const THUMB_ON = 0.28
 export const THUMB_OFF = 0.25
+/**
+ * Consecutive frames the thumb must read as out before it counts.
+ *
+ * Its distributions overlap frame to frame — a folded thumb spikes to 0.47 and
+ * an extended one dips to 0.24 — so no threshold separates them, and neither
+ * smoothing nor a median helps: both were measured and both made it worse, the
+ * first through lag and the second because the spikes come in clusters. What
+ * works is refusing to engage on a spike while still releasing instantly.
+ */
+export const THUMB_ENGAGE_FRAMES = 3
 
 /** Below this, MediaPipe is not confident enough to drive an instrument. */
 export const CONFIDENCE_FLOOR = 0.6
@@ -43,7 +53,7 @@ export function thumbSignal(hand: HandState): number {
 /** Per-digit latches, so a measurement resting on a threshold stops flickering. */
 export class FingerClassifier {
   private latches = [
-    new Latch(THUMB_ON, THUMB_OFF),
+    new Latch(THUMB_ON, THUMB_OFF, false, THUMB_ENGAGE_FRAMES),
     new Latch(FINGER_ON, FINGER_OFF),
     new Latch(FINGER_ON, FINGER_OFF),
     new Latch(FINGER_ON, FINGER_OFF),

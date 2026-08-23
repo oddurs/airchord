@@ -181,17 +181,23 @@ function land(args) {
   if (!url) die('Pushed, but gh could not open a PR. Open it by hand.')
 
   if (args.includes('--no-merge')) {
-    console.log(`\n  ${url}\n  Merge it when you are ready: gh pr merge --squash --delete-branch\n`)
+    console.log(`\n  ${url}\n  Merge it when you are ready: gh pr merge --squash\n`)
     return
   }
 
   // Auto-merge hands the decision to CI, which is the only thing that should be
   // deciding. If the repo has not enabled it, say so rather than merging anyway.
-  const auto = quiet('gh pr merge --squash --auto --delete-branch')
+  //
+  // Deliberately not --delete-branch: the repo has branch deletion switched off
+  // because deleting a merged branch closes anything stacked on it, and that has
+  // already closed one PR here. Branches go when the lane is closed, which is
+  // something someone decides rather than something a merge does.
+  const auto = quiet('gh pr merge --squash --auto')
   console.log(
     auto === null
-      ? `\n  ${url}\n  Auto-merge is not enabled on this repo — merge once CI is green:\n    gh pr merge --squash --delete-branch\n`
-      : `\n  ${url}\n  Queued to squash-merge as soon as CI is green. Then: npm run lane:done ${path.basename(root())}\n`,
+      ? `\n  ${url}\n  Auto-merge is not enabled on this repo — merge once CI is green:\n    gh pr merge --squash\n`
+      : `\n  ${url}\n  Queued to squash-merge as soon as CI is green. Then: npm run lane:done ${path.basename(root())}\n` +
+          `  main requires branches to be current, so if another lane lands first:\n    gh pr update-branch\n`,
   )
 }
 
@@ -202,9 +208,12 @@ function done(name) {
   if (dirty(where)) die(`${name} has uncommitted changes. Land them, or remove it by hand if they are disposable.`)
 
   loud(`git worktree remove ${JSON.stringify(where)}`)
-  quiet(`git branch -d ${name}`) ?? console.log(`  branch ${name} kept (not merged) — git branch -D ${name} to force`)
+  const removed = quiet(`git branch -D ${name}`) !== null
+  // The remote branch is this command's job precisely because the merge is not
+  // allowed to do it. Gone by now if someone tidied it already, which is fine.
+  const pushed = quiet(`git push ${REMOTE} --delete ${name}`) !== null
   quiet('git worktree prune')
-  console.log(`\n  ${name} closed.\n`)
+  console.log(`\n  ${name} closed${removed ? '' : ' (local branch kept)'}${pushed ? '' : ', remote branch already gone'}.\n`)
 }
 
 /* Claude Code hooks. Each reads the event JSON on stdin and answers on stdout. */

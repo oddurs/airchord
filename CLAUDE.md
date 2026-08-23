@@ -57,13 +57,15 @@ and a file edited from both sides at once. Each session takes a **lane**: one ta
 worktree, one PR. `main` is never worked in; it is only merged into.
 
 ```fish
-npm run lane <task>       # a worktree at ../airchord-wt/<task>, branched from origin/main
+npm run lane <task>       # a worktree beside the repo, branched from origin/main
 npm run lanes             # what every lane is doing: ahead, behind, uncommitted, open PR
 npm run land              # rebase on main, verify, push, open the PR, squash-merge when CI is green
 npm run lane:done <task>  # after it merges: remove the worktree and the branch
 ```
 
-`node_modules` and `public/mediapipe` are symlinked into each lane, so a lane costs no install and no
+Lanes live in `../<checkout>-wt/<task>`, named after this checkout rather than the project, so they
+sit next to it whatever the directory is called. `node_modules` and `public/mediapipe` are symlinked
+into each lane, so a lane costs no install and no
 41 MB re-download. Open one and work in it; `cd` back only to read.
 
 Four things happen without being asked — `.claude/settings.json` and `.githooks/pre-commit`:

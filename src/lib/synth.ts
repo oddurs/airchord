@@ -343,16 +343,26 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       const retained = wanted.some((f) => voices.some((v) => v.freq === f))
       const fade = retained ? timbre.fade : REVOICE_FADE
 
-      for (const voice of voices) {
-        if (voice.freq !== null && !wanted.includes(voice.freq)) voice.release(now, fade)
-      }
       // Low to high, spaced, so a chord sounds played rather than switched on.
-      let index = 0
-      for (const freq of wanted) {
-        if (voices.some((v) => v.freq === freq)) continue
+      //
+      // Departures are staggered to match the arrivals rather than happening
+      // all at once. A strum replaces notes one at a time; releasing everything
+      // at the start of one leaves a hole in the middle of the chord, which is
+      // audible as a dip and is what the articulation check measures.
+      const departing = voices.filter((v) => v.freq !== null && !wanted.includes(v.freq))
+      const arriving = wanted.filter((f) => !voices.some((v) => v.freq === f))
+
+      arriving.forEach((freq, i) => {
+        const at = now + i * strum
+        // Claim the free voice before releasing the one it replaces, or the
+        // voice being released would be free to claim and would fight itself.
         const free = voices.find((v) => !v.busy)
-        free?.attack(freq, now + index * strum, fade, overshoot)
-        index++
+        free?.attack(freq, at, fade, overshoot)
+        departing[i]?.release(at, fade)
+      })
+      // Anything with no replacement leaves once the strum has finished.
+      for (const voice of departing.slice(arriving.length)) {
+        voice.release(now + Math.max(0, arriving.length - 1) * strum, fade)
       }
 
       rootHz = Math.min(...wanted)

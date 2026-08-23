@@ -19,6 +19,8 @@ interface Props {
   onOpenAbout: () => void
   latched: boolean
   onToggleLatch: () => void
+  calibration: 'idle' | 'sampling' | 'done'
+  onCalibrate: () => void
 }
 
 export default function Controls({
@@ -35,6 +37,8 @@ export default function Controls({
   onOpenAbout,
   latched,
   onToggleLatch,
+  calibration,
+  onCalibrate,
 }: Props) {
   return (
     <div className={styles.controls}>
@@ -114,6 +118,14 @@ export default function Controls({
         </button>
         <button type="button" className={`${styles.link} label`} onClick={onOpenAbout}>
           About
+        </button>
+        <button
+          type="button"
+          className={`${styles.link} label`}
+          onClick={onCalibrate}
+          title="Hold your chord hand upright and comfortable for two seconds"
+        >
+          {calibration === 'sampling' ? 'Hold still…' : calibration === 'done' ? 'Calibrated' : 'Calibrate'}
         </button>
       </nav>
     </div>

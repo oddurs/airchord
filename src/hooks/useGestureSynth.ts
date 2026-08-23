@@ -52,6 +52,17 @@ function describe(err: unknown): string {
   }
 }
 
+const LEAN_OFFSET_KEY = 'airchord.leanOffset'
+
+function readLeanOffset(): number {
+  try {
+    const saved = Number(window.localStorage.getItem(LEAN_OFFSET_KEY))
+    return Number.isFinite(saved) ? saved : 0
+  } catch {
+    return 0
+  }
+}
+
 export function useGestureSynth() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -68,6 +79,7 @@ export function useGestureSynth() {
   const [stage, setStage] = useState<Stage>('audio')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
+  const [calibration, setCalibration] = useState<'idle' | 'sampling' | 'done'>('idle')
 
   useEffect(() => {
     keyRef.current = keyIndex
@@ -90,6 +102,7 @@ export function useGestureSynth() {
       setStage('audio')
       const engine = new Engine(canvas)
       engineRef.current = engine
+      engine.setLeanOffset(readLeanOffset())
       await engine.start()
 
       setStage('camera')
@@ -202,6 +215,26 @@ export function useGestureSynth() {
 
   const audio = useCallback(() => engineRef.current?.audio ?? null, [])
 
+  /**
+   * Records where this player actually holds an upright hand. The built-in
+   * neutral is one person's, measured in one sitting, and where a hand sits
+   * while playing is not where it sits while posing for a capture.
+   */
+  const calibrateLean = useCallback(() => {
+    const engine = engineRef.current
+    if (!engine) return
+    setCalibration('sampling')
+    engine.calibrateLean((offset) => {
+      try {
+        window.localStorage.setItem(LEAN_OFFSET_KEY, String(offset))
+      } catch {
+        // Private browsing, or storage disabled. The offset still applies to
+        // this session; it just will not be remembered.
+      }
+      setCalibration('done')
+    })
+  }, [])
+
   const toggleLatch = useCallback(() => {
     const engine = engineRef.current
     if (engine) engine.setLatched(!engine.latched)
@@ -222,6 +255,8 @@ export function useGestureSynth() {
     progress,
     toggleLatch,
     observe,
+    calibrateLean,
+    calibration,
     setTarget,
     onCommit,
     audio,

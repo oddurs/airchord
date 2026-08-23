@@ -31,6 +31,8 @@ export default function GestureSynth() {
     start,
     toggleLatch,
     observe,
+    calibrateLean,
+    calibration,
     setTarget,
     onCommit,
     audio,
@@ -92,6 +94,8 @@ export default function GestureSynth() {
         onOpenAbout={() => setAboutOpen(true)}
         latched={hud.latched}
         onToggleLatch={toggleLatch}
+        calibration={calibration}
+        onCalibrate={calibrateLean}
       />
       {guideOpen && !capturing && <Guide />}
       {phase === 'running' && songsOpen && !capturing && !tour.active && (

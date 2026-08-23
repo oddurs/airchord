@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, execSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import path from 'node:path'
 
 /**
@@ -208,6 +208,11 @@ function done(name) {
   if (dirty(where)) die(`${name} has uncommitted changes. Land them, or remove it by hand if they are disposable.`)
 
   loud(`git worktree remove ${JSON.stringify(where)}`)
+  // Build output is ignored, so git leaves it — and a few hundred kilobytes of
+  // .next under a directory named after a finished task is exactly the kind of
+  // thing nobody dares delete later. The remove above already refused if there
+  // was anything tracked to lose.
+  if (existsSync(where)) rmSync(where, { recursive: true, force: true })
   const removed = quiet(`git branch -D ${name}`) !== null
   // The remote branch is this command's job precisely because the merge is not
   // allowed to do it. Gone by now if someone tidied it already, which is fine.

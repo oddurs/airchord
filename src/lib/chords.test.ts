@@ -108,10 +108,13 @@ test('the lean holds its last state inside the dead band', () => {
   // the whole point: straightening up must escape minor.
   const neutral = neutralRollFor(1)
   assert.equal(leanToMajor(neutral, 1, false), true, 'upright escapes minor')
-  assert.equal(leanToMajor(neutral - 0.06, 1, true), true, 'inside the band, still major')
-  assert.equal(leanToMajor(neutral - 0.06, 1, false), false, 'inside the band, still minor')
+  // Upright hands vary by up to 0.054 below neutral, and every one of those must
+  // escape minor — so the ambiguous band sits well below, not around, neutral.
+  assert.equal(leanToMajor(neutral - 0.054, 1, false), true, 'the lowest upright frame still escapes')
+  assert.equal(leanToMajor(neutral - 0.12, 1, true), true, 'inside the band, still major')
+  assert.equal(leanToMajor(neutral - 0.12, 1, false), false, 'inside the band, still minor')
   // A decisive lean always wins, whichever way it was leaning before.
-  assert.equal(leanToMajor(neutral - 0.2, 1, true), false)
+  assert.equal(leanToMajor(neutral - 0.25, 1, true), false)
   assert.equal(leanToMajor(neutral + 0.2, 1, false), true)
 })
 

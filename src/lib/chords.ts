@@ -132,8 +132,20 @@ export function degreeFromFingers([thumb, index, middle, ring, pinky]: Fingers):
  */
 const NEUTRAL_ROLL = [0.054, 0.068, 0.072, 0.092, 0.086, 0.136, 0.162]
 
-const MINOR_ON = -0.1
-const MINOR_OFF = -0.03
+/**
+ * The band sits below the *lowest* upright lean, not below the average one.
+ *
+ * Neutral has spread within a pose as well as between poses: a pointing finger
+ * averages 0.054 but ranges down to 0.000, so a band centred on the average left
+ * upright frames inside it, holding whatever quality was there before. That is
+ * how an upright hand kept playing minor.
+ *
+ * Worst upright lean across the captured poses is -0.054, so the major
+ * threshold clears it with margin, and minor still sits well within reach of a
+ * deliberate roll (a measured minor lean reads about -0.21).
+ */
+const MINOR_ON = -0.16
+const MINOR_OFF = -0.075
 
 /** The same band, for anything that has to *draw* the decision. Exported rather
  *  than duplicated: a lean cue that disagrees with the lean is worse than none. */

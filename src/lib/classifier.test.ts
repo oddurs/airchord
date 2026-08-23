@@ -82,10 +82,19 @@ test('an upright hand always reads major, whatever it played before', () => {
   for (const sample of upright) {
     const degree = DEGREE[sample.label] ?? null
     let major = false // worst case: coming out of a minor chord
+    let majorFrames = 0
     for (const frame of sample.frames) {
       major = leanToMajor(describeLandmarks(frame, sample.side).roll, degree, major)
+      if (major) majorFrames++
     }
-    assert.equal(major, true, `${sample.label} stayed minor while held upright`)
+    // Checking only the final frame is what let a regression through: a pose can
+    // end major having spent most of its frames stuck in minor, which is exactly
+    // what an upright hand playing minor feels like.
+    const share = majorFrames / sample.frames.length
+    assert.ok(
+      share > 0.95,
+      `${sample.label} read major in only ${Math.round(share * 100)}% of upright frames`,
+    )
   }
 })
 

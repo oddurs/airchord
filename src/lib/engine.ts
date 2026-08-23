@@ -1,10 +1,11 @@
 import type { Fingers, HandState, Side } from './vision'
-import { FingerClassifier, registerFromHeight } from './classifier'
+import { FingerClassifier, THUMB_OFF, THUMB_ON, registerFromHeight, thumbSignal } from './classifier'
 import {
   buildChord,
   degreeFromFingers,
   DEFAULT_LEAN,
   isLeaned,
+  leanOf,
   majorFor,
   type LeanCalibration,
   voicingFromFingers,
@@ -90,6 +91,25 @@ export const IDLE_HUD: Hud = {
   volume: 0,
   hands: 0,
   latched: false,
+}
+
+/**
+ * What the instrument currently believes, in the terms it believes it in.
+ *
+ * Every bug reported against this thing has been ambiguous — "wrong chord" can
+ * mean the degree, the quality, the octave or silence, and each ambiguity costs
+ * a round trip through a person playing. This is the cure: the instrument says
+ * what it sees, so a report arrives with numbers attached.
+ */
+export interface Diagnostics {
+  /** Why no chord is sounding, or 'playing'. */
+  reason: string
+  fingers: { left: Fingers | null; right: Fingers | null }
+  degree: number | null
+  lean: { value: number; engage: number; release: number; leaned: boolean } | null
+  register: number
+  thumb: { left: number | null; right: number | null; on: number; off: number }
+  fps: number
 }
 
 export interface FrameInput {
@@ -199,6 +219,15 @@ export class Engine {
   private startedAt = 0
   private lastFrame = 0
   private fps = new Smoothed(0.1)
+  private diag: Diagnostics = {
+    reason: 'starting',
+    fingers: { left: null, right: null },
+    degree: null,
+    lean: null,
+    register: 0,
+    thumb: { left: null, right: null, on: THUMB_ON, off: THUMB_OFF },
+    fps: 0,
+  }
   private observer: ((hands: HandState[]) => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
@@ -286,6 +315,11 @@ export class Engine {
     this.lean = cal
   }
 
+  /** Read by the on-screen readout at its own pace; the loop never waits on it. */
+  get diagnostics(): Diagnostics {
+    return this.diag
+  }
+
   /** Lets the capture tool see every frame without threading it through React. */
   observe(callback: ((hands: HandState[]) => void) | null): void {
     this.observer = callback
@@ -299,7 +333,7 @@ export class Engine {
   frame({ hands, video, key, now, inferenceMs }: FrameInput): Hud {
     const interval = this.lastFrame ? now - this.lastFrame : 0
     this.lastFrame = now
-    if (interval > 0) this.fps.update(1000 / interval)
+    if (interval > 0) this.diag.fps = this.fps.update(1000 / interval)
 
     // A hand only counts if the tracker is confident about it and the palm is
     // actually in shot. Landmarks are extrapolated past the frame edge, so a
@@ -431,6 +465,18 @@ export class Engine {
       this.report(left, right, chord, inferenceMs, interval)
     }
 
+    this.describe(
+      hands,
+      liveLeft,
+      liveRight,
+      leftFingers ?? null,
+      rightFingers ?? null,
+      degree,
+      resting,
+      smoothedRoll,
+      sounding,
+    )
+
     return {
       name: chord?.name ?? null,
       numeral: chord?.numeral ?? null,
@@ -505,6 +551,60 @@ export class Engine {
   }
 
   /** Dev-only: raw features plus the latency budget, for tuning against real play. */
+  /**
+   * Records what the instrument currently believes, in its own terms, so a
+   * fault can be read off the screen instead of inferred from how it sounded.
+   */
+  private describe(
+    hands: HandState[],
+    liveLeft: HandState | null,
+    liveRight: HandState | null,
+    leftFingers: Fingers | null,
+    rightFingers: Fingers | null,
+    degree: number | null,
+    resting: boolean,
+    smoothedRoll: number | null,
+    sounding: Identity | null,
+  ): void {
+    const band = this.calibration?.thumb ?? { on: THUMB_ON, off: THUMB_OFF }
+    const reason = this.held
+      ? 'held'
+      : hands.length === 0
+        ? 'no hands'
+        : !liveLeft
+          ? 'chord hand out of frame'
+          : resting
+            ? 'resting'
+            : degree === null
+              ? 'pose not recognised'
+              : sounding
+                ? 'playing'
+                : 'settling'
+
+    this.diag = {
+      reason,
+      fingers: { left: leftFingers, right: rightFingers },
+      degree,
+      lean:
+        smoothedRoll === null
+          ? null
+          : {
+              value: leanOf(smoothedRoll, degree, this.lean.offset),
+              engage: this.lean.on,
+              release: this.lean.off,
+              leaned: this.leaned,
+            },
+      register: this.register,
+      thumb: {
+        left: liveLeft ? thumbSignal(liveLeft) : null,
+        right: liveRight ? thumbSignal(liveRight) : null,
+        on: band.on,
+        off: band.off,
+      },
+      fps: this.diag.fps,
+    }
+  }
+
   private report(
     left: HandState | null,
     right: HandState | null,

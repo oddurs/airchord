@@ -240,6 +240,9 @@ export function useGestureSynth() {
    * neutral is one person's, measured in one sitting, and where a hand sits
    * while playing is not where it sits while posing for a capture.
    */
+  /** Polled by the readout, so drawing a number never blocks the render loop. */
+  const readDiagnostics = useCallback(() => engineRef.current?.diagnostics ?? null, [])
+
   const calibrateLean = useCallback(() => {
     const engine = engineRef.current
     if (!engine) return
@@ -286,6 +289,7 @@ export function useGestureSynth() {
     observe,
     calibrateLean,
     calibration,
+    readDiagnostics,
     setTarget,
     onCommit,
     audio,

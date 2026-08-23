@@ -1,0 +1,47 @@
+.readout {
+  position: absolute;
+  /* Under the controls rather than over the chord: the readout is for reading
+     while you play, not instead of the thing you are playing. */
+  left: clamp(20px, 4vw, 56px);
+  top: clamp(150px, 20vh, 190px);
+  z-index: 6;
+  min-width: 240px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: rgba(10, 10, 10, 0.88);
+  text-shadow: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 1px 0;
+  font-size: 12px;
+}
+
+.label { color: var(--ink-faint); }
+.mono { font-variant-numeric: tabular-nums; }
+.faint { color: var(--ink-faint); }
+.strong { color: var(--ink-full); }
+
+.copy {
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  padding-top: 8px;
+  width: 100%;
+  text-align: left;
+  color: var(--ink-quiet);
+  font: inherit;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.copy:hover { color: var(--ink-full); }

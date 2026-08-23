@@ -22,6 +22,8 @@ interface Props {
   onToggleLatch: () => void
   calibration: CalibrationState
   onCalibrate: () => void
+  readoutOpen: boolean
+  onToggleReadout: () => void
 }
 
 export default function Controls({
@@ -40,6 +42,8 @@ export default function Controls({
   onToggleLatch,
   calibration,
   onCalibrate,
+  readoutOpen,
+  onToggleReadout,
 }: Props) {
   return (
     <div className={styles.controls}>
@@ -137,6 +141,15 @@ export default function Controls({
               : calibration.saved
                 ? 'Calibrated'
                 : 'Calibrate'}
+        </button>
+        <button
+          type="button"
+          className={`${styles.link} label`}
+          onClick={onToggleReadout}
+          aria-pressed={readoutOpen}
+          title="Show what the instrument is reading from your hands"
+        >
+          Readout
         </button>
       </nav>
 

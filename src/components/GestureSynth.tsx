@@ -10,6 +10,7 @@ import CapturePanel from './CapturePanel'
 import Controls from './Controls'
 import Guide from './Guide'
 import Landing from './Landing'
+import Readout from './Readout'
 import Hud from './Hud'
 import SongPanel from './SongPanel'
 import Welcome from './Welcome'
@@ -33,6 +34,7 @@ export default function GestureSynth() {
     observe,
     calibrateLean,
     calibration,
+    readDiagnostics,
     setTarget,
     onCommit,
     audio,
@@ -59,6 +61,11 @@ export default function GestureSynth() {
   }, [])
   const [guideOpen, setGuideOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [readoutOpen, setReadoutOpen] = useState(false)
+  // ?debug opens it without hunting for the control.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('debug')) setReadoutOpen(true)
+  }, [])
 
   // Space is the sustain pedal. Every keyboard instrument has one, and it is
   // the answer to the only real objection to playing this for a whole song:
@@ -96,6 +103,8 @@ export default function GestureSynth() {
         onToggleLatch={toggleLatch}
         calibration={calibration}
         onCalibrate={calibrateLean}
+        readoutOpen={readoutOpen}
+        onToggleReadout={() => setReadoutOpen((open) => !open)}
       />
       {guideOpen && !capturing && <Guide />}
       {phase === 'running' && songsOpen && !capturing && !tour.active && (
@@ -129,6 +138,7 @@ export default function GestureSynth() {
         <Landing phase={phase} stage={stage} progress={progress} onStart={start} />
       )}
 
+      {readoutOpen && phase === 'running' && <Readout read={readDiagnostics} />}
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
     </main>
   )

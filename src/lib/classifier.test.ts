@@ -76,10 +76,14 @@ test('an upright hand always reads major, whatever it played before', () => {
   const upright = dataset!.samples.filter((s) => s.trusted !== false && s.side === 'left')
   assert.ok(upright.length > 0)
 
+  const DEGREE: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, horns: 6, ily: 7,
+  }
   for (const sample of upright) {
+    const degree = DEGREE[sample.label] ?? null
     let major = false // worst case: coming out of a minor chord
     for (const frame of sample.frames) {
-      major = leanToMajor(describeLandmarks(frame, sample.side).roll, major)
+      major = leanToMajor(describeLandmarks(frame, sample.side).roll, degree, major)
     }
     assert.equal(major, true, `${sample.label} stayed minor while held upright`)
   }

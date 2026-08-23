@@ -267,12 +267,17 @@ export class Engine {
 
     const { volume, tilt } = this.readExpression(right, left, leftHeight)
     this.synth.setTilt(tilt)
-    this.isMajor = leanToMajor(left ? this.stable.left.roll(left.roll) : null, this.isMajor)
+
 
     // A lowered hand is an instruction and takes effect; an absent one is an
     // accident and is covered by grace.
     const resting = liveLeft !== null && leftHeight < REST_HEIGHT
     const degree = liveLeft && leftFingers && !resting ? degreeFromFingers(leftFingers) : null
+
+    // Lean is read against the pose being made, so the degree has to be known
+    // first. Neutral is not one angle: people hold a horns pose at a genuinely
+    // different attitude from a pointing finger.
+    this.isMajor = leanToMajor(left ? this.stable.left.roll(left.roll) : null, degree, this.isMajor)
 
     // Register follows the height of the chord hand. It used to ride the right
     // thumb — the least reliable measurement in the instrument, and invisible

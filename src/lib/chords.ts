@@ -118,17 +118,43 @@ export function degreeFromFingers([thumb, index, middle, ring, pinky]: Fingers):
  *
  * These are one player's hands. Per-player calibration is the real answer.
  */
+/**
+ * Neutral roll for each degree, measured from the captured dataset with every
+ * pose held upright. It is not one number: people hold a horns pose at a
+ * genuinely different angle from a pointing finger, and across the seven poses
+ * neutral moves by 0.11 radians — against a decision band 0.07 wide.
+ *
+ * That mismatch, not the threshold, is why this control kept reading minor on
+ * an upright hand. Lean is therefore measured *relative to the pose being
+ * made*, which collapses the spread to nothing.
+ *
+ * One player's hands. Calibration replaces this table rather than adjusting it.
+ */
+const NEUTRAL_ROLL = [0.054, 0.068, 0.072, 0.092, 0.086, 0.136, 0.162]
+
 const MINOR_ON = -0.1
-const MINOR_OFF = -0.02
+const MINOR_OFF = -0.03
 
 /** The same band, for anything that has to *draw* the decision. Exported rather
  *  than duplicated: a lean cue that disagrees with the lean is worse than none. */
 export const LEAN_BAND = { minor: MINOR_ON, major: MINOR_OFF }
 
-export function leanToMajor(roll: number | null, wasMajor: boolean): boolean {
+/** Where an upright hand sits for this degree, so lean can be measured from it. */
+export function neutralRollFor(degree: number | null): number {
+  if (degree === null) return NEUTRAL_ROLL[0]
+  return NEUTRAL_ROLL[Math.min(NEUTRAL_ROLL.length, Math.max(1, degree)) - 1]
+}
+
+/** How far the hand has leaned from upright *for the pose it is making*. */
+export function leanOf(roll: number, degree: number | null): number {
+  return roll - neutralRollFor(degree)
+}
+
+export function leanToMajor(roll: number | null, degree: number | null, wasMajor: boolean): boolean {
   if (roll === null) return true
-  if (roll < MINOR_ON) return false
-  if (roll > MINOR_OFF) return true
+  const lean = leanOf(roll, degree)
+  if (lean < MINOR_ON) return false
+  if (lean > MINOR_OFF) return true
   return wasMajor
 }
 

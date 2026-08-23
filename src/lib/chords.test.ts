@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { KEYS, buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Gesture } from './chords.ts'
+import {
+  KEYS,
+  buildChord,
+  degreeFromFingers,
+  leanToMajor,
+  neutralRollFor,
+  voicingFromFingers,
+  type Gesture,
+} from './chords.ts'
 import type { Fingers } from './vision.ts'
 
 const E = KEYS.find((k) => k.name === 'E')!
@@ -86,26 +94,29 @@ test('roman numerals report the quality the hand chose, not the key', () => {
 const MEASURED = { E: 0.065, Gsharp: 0.055, A: 0.18, Am: -0.115 }
 
 test('the lean threshold separates the majors from the minor in real footage', () => {
-  assert.equal(leanToMajor(MEASURED.E, true), true)
-  assert.equal(leanToMajor(MEASURED.Gsharp, true), true)
-  assert.equal(leanToMajor(MEASURED.A, true), true)
-  assert.equal(leanToMajor(MEASURED.Am, true), false, 'a rolled hand must reach minor')
+  // Degrees matter now: lean is read against where an upright hand sits for the
+  // pose being made, which is not the same angle for one finger and for four.
+  assert.equal(leanToMajor(MEASURED.E, 1, true), true)
+  assert.equal(leanToMajor(MEASURED.Gsharp, 3, true), true)
+  assert.equal(leanToMajor(MEASURED.A, 4, true), true)
+  assert.equal(leanToMajor(MEASURED.Am, 4, true), false, 'a rolled hand must reach minor')
 })
 
 test('the lean holds its last state inside the dead band', () => {
   // The band sits below zero, because a hand held upright reads positive roll.
   // Zero is therefore already a major reading, not an undecided one — which is
   // the whole point: straightening up must escape minor.
-  assert.equal(leanToMajor(0, false), true, 'upright escapes minor')
-  assert.equal(leanToMajor(-0.06, true), true, 'inside the band, still major')
-  assert.equal(leanToMajor(-0.06, false), false, 'inside the band, still minor')
+  const neutral = neutralRollFor(1)
+  assert.equal(leanToMajor(neutral, 1, false), true, 'upright escapes minor')
+  assert.equal(leanToMajor(neutral - 0.06, 1, true), true, 'inside the band, still major')
+  assert.equal(leanToMajor(neutral - 0.06, 1, false), false, 'inside the band, still minor')
   // A decisive lean always wins, whichever way it was leaning before.
-  assert.equal(leanToMajor(-0.2, true), false)
-  assert.equal(leanToMajor(0.2, false), true)
+  assert.equal(leanToMajor(neutral - 0.2, 1, true), false)
+  assert.equal(leanToMajor(neutral + 0.2, 1, false), true)
 })
 
 test('no left hand means no minor', () => {
-  assert.equal(leanToMajor(null, false), true)
+  assert.equal(leanToMajor(null, null, false), true)
 })
 
 test('a thumb alone is never a chord', () => {

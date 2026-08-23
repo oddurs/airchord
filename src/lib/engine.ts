@@ -348,7 +348,12 @@ export class Engine {
     // thumb — the least reliable measurement in the instrument, and invisible
     // besides. Height is stable, continuous, and means something before it is
     // learned: lift the chord hand to lift the chord.
-    if (liveLeft) this.register = registerFromHeight(leftHeight, this.register)
+    // Only a settled hand changes register. A hand on its way down to rest
+    // passes through the bottom of its range, and a hand drifting mid-phrase
+    // passes through the top; neither is a request to transpose.
+    if (liveLeft && this.stable.left.motion(liveLeft) <= STILL) {
+      this.register = registerFromHeight(leftHeight, this.register)
+    }
 
     const identity =
       degree === null ? null : { degree, major, octave: this.register }

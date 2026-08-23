@@ -49,8 +49,20 @@ const REST_HEIGHT = 0.06
  * somewhere never commits what it passes through.
  */
 const MOVING_HOLD_MS = 420
-/** Mean landmark travel per frame, in frame widths, that counts as settled. */
-const STILL = 0.0035
+/**
+ * Mean landmark travel *per second*, in frame widths, below which a hand counts
+ * as settled.
+ *
+ * Per second rather than per frame, or the same hand speed means different
+ * things at different frame rates: on a camera granting 60fps every hand looks
+ * half as fast and the protection against chords in transit is quietly halved,
+ * while on a slow machine everything looks twice as fast and the instrument
+ * turns sluggish. This is the same frame-rate dependency the stabilisers were
+ * given clocks to avoid.
+ */
+const STILL = 0.105
+/** A gap longer than this is a stall or a resumed tab, not a fast hand. */
+const MAX_FRAME_GAP_MS = 250
 
 /** Confidence needs a band too, or a hand at the floor blinks in and out. */
 const CONFIDENT_ON = 0.7
@@ -155,7 +167,7 @@ class HandStabiliser {
   }
 
   /** Mean landmark travel since the last frame: high in transit, near zero held. */
-  motion(hand: HandState): number {
+  motion(hand: HandState, elapsedMs: number): number {
     const points = hand.points
     let travel = 0
     if (this.previous && this.previous.length === points.length) {
@@ -165,7 +177,11 @@ class HandStabiliser {
       travel /= points.length
     }
     this.previous = points
-    return this.motionFilter.update(travel)
+
+    // A resumed tab or a stalled frame produces one enormous step that is not a
+    // hand moving fast. Carry the previous reading rather than inventing one.
+    if (elapsedMs <= 0 || elapsedMs > MAX_FRAME_GAP_MS) return this.motionFilter.update(0)
+    return this.motionFilter.update(travel / (elapsedMs / 1000))
   }
 
   roll(value: number): number {
@@ -218,6 +234,7 @@ export class Engine {
   private register = 0
   private startedAt = 0
   private lastFrame = 0
+  private lastInterval = 0
   private fps = new Smoothed(0.1)
   private diag: Diagnostics = {
     reason: 'starting',
@@ -339,6 +356,7 @@ export class Engine {
   frame({ hands, video, key, now, inferenceMs }: FrameInput): Hud {
     const interval = this.lastFrame ? now - this.lastFrame : 0
     this.lastFrame = now
+    this.lastInterval = interval
     if (interval > 0) this.diag.fps = this.fps.update(1000 / interval)
 
     // A hand only counts if the tracker is confident about it and the palm is
@@ -391,7 +409,7 @@ export class Engine {
     // Only a settled hand changes register. A hand on its way down to rest
     // passes through the bottom of its range, and a hand drifting mid-phrase
     // passes through the top; neither is a request to transpose.
-    if (liveLeft && this.stable.left.motion(liveLeft) <= STILL) {
+    if (liveLeft && this.stable.left.motion(liveLeft, interval) <= STILL) {
       this.register = registerFromHeight(leftHeight, this.register)
     }
 
@@ -402,7 +420,7 @@ export class Engine {
       this.target !== null &&
       identity.degree === this.target.degree &&
       identity.major === this.target.major
-    const moving = liveLeft !== null && this.stable.left.motion(liveLeft) > STILL
+    const moving = liveLeft !== null && this.stable.left.motion(liveLeft, interval) > STILL
     const hold = expected ? EXPECTED_HOLD_MS : moving ? MOVING_HOLD_MS : CHORD_HOLD_MS
 
     // Three cases, and they are deliberately distinct. A hand in view decides;
@@ -534,7 +552,7 @@ export class Engine {
     const step = STEPS[cal.index]
     if (!step || !live) return
     // A sample taken mid-move measures the move, not the hold.
-    if (this.stable.left.motion(live) > STILL) return
+    if (this.stable.left.motion(live, this.lastInterval) > STILL) return
 
     const value = step.sample(live, degree)
     if (value === null) return

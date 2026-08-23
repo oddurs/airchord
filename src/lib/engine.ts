@@ -64,6 +64,16 @@ const STILL = 0.105
 /** A gap longer than this is a stall or a resumed tab, not a fast hand. */
 const MAX_FRAME_GAP_MS = 250
 
+/**
+ * Motion, per second, that counts as placing a chord as firmly as the
+ * instrument recognises. Read from the *approach* rather than the arrival: by
+ * the time a chord commits the hand is deliberately still, so the speed it got
+ * there at is the only thing left that says how it was played.
+ */
+const FIRM_PLACEMENT = 0.8
+/** How quickly the memory of the approach fades, in milliseconds. */
+const APPROACH_MEMORY_MS = 400
+
 /** Confidence needs a band too, or a hand at the floor blinks in and out. */
 const CONFIDENT_ON = 0.7
 const CONFIDENT_OFF = 0.5
@@ -154,6 +164,7 @@ class HandStabiliser {
   private classifier = new FingerClassifier()
   private previous: { x: number; y: number }[] | null = null
   private motionFilter = new Smoothed(0.4)
+  private peak = 0
   private rollFilter = new Smoothed(0.35)
   private tiltFilter = new Smoothed(0.3)
   private heightFilter = new Smoothed(0.4)
@@ -181,7 +192,14 @@ class HandStabiliser {
     // A resumed tab or a stalled frame produces one enormous step that is not a
     // hand moving fast. Carry the previous reading rather than inventing one.
     if (elapsedMs <= 0 || elapsedMs > MAX_FRAME_GAP_MS) return this.motionFilter.update(0)
-    return this.motionFilter.update(travel / (elapsedMs / 1000))
+    const speed = this.motionFilter.update(travel / (elapsedMs / 1000))
+    this.peak = Math.max(speed, this.peak * Math.pow(0.5, elapsedMs / APPROACH_MEMORY_MS))
+    return speed
+  }
+
+  /** The fastest the hand was moving recently, fading as it settles. */
+  get approach(): number {
+    return this.peak
   }
 
   roll(value: number): number {
@@ -450,7 +468,10 @@ export class Engine {
     const chord = sounding && buildChord(key, { ...sounding, ...colour })
     const easedVolume = volume * Math.min(1, (now - this.startedAt) / EASE_IN_MS)
     if (chord) {
-      this.synth.play(chord.freqs)
+      // How the chord was placed, as opposed to which chord it is. Only read
+      // when the set of pitches actually changes; play ignores it otherwise.
+      const velocity = Math.min(1, this.stable.left.approach / FIRM_PLACEMENT)
+      this.synth.play(chord.freqs, { velocity })
       this.synth.setVolume(easedVolume)
     } else {
       this.synth.stop()

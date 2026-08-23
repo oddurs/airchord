@@ -12,6 +12,12 @@ const PAN_SPREAD = 0.55
  * sloppier: it is proportionate to how much of the sound is being replaced.
  */
 const REVOICE_FADE = 0.09
+/** How long a firmly placed chord takes to settle back to its held level. */
+const SETTLE = 0.07
+/** Spacing between voices when a chord is strummed rather than switched. */
+const STRUM_MAX = 0.03
+/** How much above the held level the firmest placement arrives. */
+const OVERSHOOT_MAX = 0.35
 
 /** Slow, shallow, mutually prime: a held chord breathes instead of sitting still.
  *  How far it drifts is the voice's business; how it drifts is the instrument's. */
@@ -64,7 +70,7 @@ export interface SynthGraph {
   setTimbre(id: TimbreId): void
   setVolume(level: number): void
   setTilt(tilt: number): void
-  play(freqs: number[]): void
+  play(freqs: number[], expression?: Expression): void
   /** Re-articulates whatever is already sounding, at a scheduled time. */
   strike(at: number, velocity: number): void
   stop(): void
@@ -74,6 +80,12 @@ export interface SynthGraph {
  * What a backing track needs from the instrument: its clock, the bus that shares
  * its limiter, and a way to re-articulate the chord the player is holding.
  */
+/** How a chord was placed, as opposed to which chord it is. */
+export interface Expression {
+  /** 0 eased in, 1 placed firmly. Tightens the strum and lifts the arrival. */
+  velocity: number
+}
+
 export interface AudioBridge {
   context: BaseAudioContext
   destination: AudioNode
@@ -121,11 +133,21 @@ class Voice {
     })
   }
 
-  /** Retunes while silent, then fades in — so the pitch change itself is inaudible. */
-  attack(freq: number, at: number, fade: number): void {
+  /**
+   * Retunes while silent, then fades in — so the pitch change itself is
+   * inaudible. `overshoot` lets a firmly placed chord arrive above its held
+   * level and settle back, which is an articulation rather than an envelope:
+   * the hand still decides how loud the chord stays.
+   */
+  attack(freq: number, at: number, fade: number, overshoot = 0): void {
     this.freq = freq
     for (const osc of this.oscillators) osc.frequency.setValueAtTime(freq, at)
-    this.ramp(this.level, at, fade)
+    if (overshoot <= 0) {
+      this.ramp(this.level, at, fade)
+      return
+    }
+    this.ramp(this.level * (1 + overshoot), at, fade)
+    for (const gain of this.gains) gain.gain.setTargetAtTime(this.level, at + fade, SETTLE)
   }
 
   /**
@@ -308,8 +330,12 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
     },
 
     /** Holds common tones untouched; only what changed moves. */
-    play(freqs) {
+    play(freqs, expression) {
       const now = ctx.currentTime
+      // A chord placed briskly arrives tighter and harder than one eased into.
+      const force = Math.min(1, Math.max(0, expression?.velocity ?? 0))
+      const strum = STRUM_MAX * (1 - force)
+      const overshoot = OVERSHOOT_MAX * force
       const wanted = freqs.map((f) => Math.round(f * 10) / 10)
 
       // Nothing held over means the whole chord is being replaced, and the
@@ -320,10 +346,13 @@ export function buildSynth(ctx: BaseAudioContext): SynthGraph {
       for (const voice of voices) {
         if (voice.freq !== null && !wanted.includes(voice.freq)) voice.release(now, fade)
       }
+      // Low to high, spaced, so a chord sounds played rather than switched on.
+      let index = 0
       for (const freq of wanted) {
         if (voices.some((v) => v.freq === freq)) continue
         const free = voices.find((v) => !v.busy)
-        free?.attack(freq, now, fade)
+        free?.attack(freq, now + index * strum, fade, overshoot)
+        index++
       }
 
       rootHz = Math.min(...wanted)
@@ -445,8 +474,8 @@ export class Synth {
     this.graph?.setTilt(tilt)
   }
 
-  play(freqs: number[]): void {
-    this.graph?.play(freqs)
+  play(freqs: number[], expression?: Expression): void {
+    this.graph?.play(freqs, expression)
   }
 
   stop(): void {

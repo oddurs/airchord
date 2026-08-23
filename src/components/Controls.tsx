@@ -3,7 +3,7 @@
 import { KEYS } from '@/lib/chords'
 import { BPM_RANGE, SIGNATURES } from '@/lib/beat'
 import { TIMBRES, type TimbreId } from '@/lib/timbre'
-import type { CalibrationStatus } from '@/hooks/useGestureSynth'
+import type { CalibrationState } from '@/hooks/useGestureSynth'
 import styles from './Controls.module.css'
 
 interface Props {
@@ -20,16 +20,8 @@ interface Props {
   onOpenAbout: () => void
   latched: boolean
   onToggleLatch: () => void
-  calibration: CalibrationStatus
+  calibration: CalibrationState
   onCalibrate: () => void
-}
-
-const CALIBRATION_LABEL: Record<CalibrationStatus, string> = {
-  idle: 'Calibrate',
-  upright: 'Hold upright…',
-  leaned: 'Now lean…',
-  done: 'Calibrated',
-  failed: 'Try again',
 }
 
 export default function Controls({
@@ -132,11 +124,27 @@ export default function Controls({
           type="button"
           className={`${styles.link} label`}
           onClick={onCalibrate}
-          title="Hold your chord hand upright and comfortable for two seconds"
+          title={
+            calibration.step?.hint ??
+            calibration.problem ??
+            'Measures your hands: lean, reach and thumb'
+          }
         >
-          {CALIBRATION_LABEL[calibration]}
+          {calibration.step
+            ? calibration.step.title
+            : calibration.problem
+              ? 'Try again'
+              : calibration.saved
+                ? 'Calibrated'
+                : 'Calibrate'}
         </button>
       </nav>
+
+      {(calibration.step || calibration.problem) && (
+        <p className={styles.coaching}>
+          {calibration.step ? calibration.step.hint : calibration.problem}
+        </p>
+      )}
     </div>
   )
 }

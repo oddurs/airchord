@@ -125,3 +125,14 @@
   font-size: 14px;
   color: var(--ink-full);
 }
+
+/* Coaching for whichever calibration step is being held. It says what to do
+   rather than only what is happening, because a step you misread is a step that
+   measures the wrong thing. */
+.coaching {
+  margin: 2px 0 0;
+  max-width: 22em;
+  color: var(--ink-quiet);
+  font-size: 11.5px;
+  line-height: 1.5;
+}

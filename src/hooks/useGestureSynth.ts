@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTracker, loadModel, readHands } from '@/lib/vision'
 import { KEYS } from '@/lib/chords'
-import { Engine, IDLE_HUD, hudEqual, type CalibrationPhase, type Hud } from '@/lib/engine'
-import type { LeanCalibration } from '@/lib/chords'
+import { Engine, IDLE_HUD, hudEqual, type Hud } from '@/lib/engine'
+import { isValid, type Calibration, type Step } from '@/lib/calibration'
 import type { PoseTarget } from '@/lib/pose'
 import { DEFAULT_TIMBRE, type TimbreId } from '@/lib/timbre'
 import { recall, remember } from '@/lib/remember'
@@ -53,17 +53,23 @@ function describe(err: unknown): string {
   }
 }
 
-const LEAN_KEY = 'airchord.lean'
+const CALIBRATION_KEY = 'airchord.calibration'
 
-export type CalibrationStatus = 'idle' | CalibrationPhase | 'failed'
+export interface CalibrationState {
+  /** The step being held right now, or null when nothing is running. */
+  step: Step | null
+  /** Set when a run was refused, naming what went wrong. */
+  problem: string | null
+  saved: boolean
+}
 
-function readLean(): LeanCalibration | null {
+/** Anything malformed or from an older schema is ignored rather than trusted. */
+function readCalibration(): Calibration | null {
   try {
-    const raw = window.localStorage.getItem(LEAN_KEY)
+    const raw = window.localStorage.getItem(CALIBRATION_KEY)
     if (!raw) return null
-    const saved = JSON.parse(raw) as LeanCalibration
-    const ok = [saved?.offset, saved?.on, saved?.off].every((v) => Number.isFinite(v))
-    return ok ? saved : null
+    const saved: unknown = JSON.parse(raw)
+    return isValid(saved) ? saved : null
   } catch {
     return null
   }
@@ -85,7 +91,11 @@ export function useGestureSynth() {
   const [stage, setStage] = useState<Stage>('audio')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
-  const [calibration, setCalibration] = useState<CalibrationStatus>('idle')
+  const [calibration, setCalibration] = useState<CalibrationState>({
+    step: null,
+    problem: null,
+    saved: false,
+  })
 
   useEffect(() => {
     keyRef.current = keyIndex
@@ -108,8 +118,11 @@ export function useGestureSynth() {
       setStage('audio')
       const engine = new Engine(canvas)
       engineRef.current = engine
-      const saved = readLean()
-      if (saved) engine.setLean(saved)
+      const saved = readCalibration()
+      if (saved) {
+        engine.setCalibration(saved)
+        setCalibration({ step: null, problem: null, saved: true })
+      }
       await engine.start()
 
       setStage('camera')
@@ -230,20 +243,23 @@ export function useGestureSynth() {
   const calibrateLean = useCallback(() => {
     const engine = engineRef.current
     if (!engine) return
+    setCalibration({ step: null, problem: null, saved: false })
     engine.beginCalibration(
-      (phase) => setCalibration(phase),
+      (step) => setCalibration((prev) => ({ ...prev, step })),
       (result) => {
-        if (!result) {
-          // The two holds were not far enough apart to tell one from the other.
-          setCalibration('failed')
+        if ('problems' in result) {
+          // Refusing is deliberate: a calibration derived from holds that cannot
+          // be told apart is worse than the defaults, because it looks measured.
+          const first = result.problems[0]
+          setCalibration({ step: null, problem: `${first.step}: ${first.reason}`, saved: false })
           return
         }
         try {
-          window.localStorage.setItem(LEAN_KEY, JSON.stringify(result))
+          window.localStorage.setItem(CALIBRATION_KEY, JSON.stringify(result.calibration))
         } catch {
           // Private browsing. It applies to this session, just isn't remembered.
         }
-        setCalibration('done')
+        setCalibration({ step: null, problem: null, saved: true })
       },
     )
   }, [])

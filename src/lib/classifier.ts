@@ -60,6 +60,11 @@ export class FingerClassifier {
     new Latch(FINGER_ON, FINGER_OFF),
   ]
 
+  /** Replaces the built-in thumb band with one measured from this player. */
+  setThumbBand(on: number, off: number): void {
+    this.latches[0] = new Latch(on, off, false, THUMB_ENGAGE_FRAMES)
+  }
+
   update(hand: HandState): Fingers {
     const signals = [thumbSignal(hand), ...hand.extension.slice(1)]
     return this.latches.map((latch, i) => latch.update(signals[i])) as Fingers

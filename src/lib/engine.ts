@@ -4,16 +4,15 @@ import {
   buildChord,
   degreeFromFingers,
   DEFAULT_LEAN,
-  calibrationFrom,
   isLeaned,
   majorFor,
-  neutralRollFor,
   type LeanCalibration,
   voicingFromFingers,
   type Chord,
   type Key,
 } from './chords'
 import { Committer, Grace, Latch, Smoothed } from './smoothing'
+import { STEPS, derive, reachTo01, type Calibration, type Samples, type Step } from './calibration'
 import type { PoseTarget } from './pose'
 import { Synth, type AudioBridge } from './synth'
 import type { TimbreId } from './timbre'
@@ -64,7 +63,6 @@ const CALIBRATION_FRAMES = 45
 /** A beat between steps, so changing pose is never mistaken for the pose. */
 const CALIBRATION_SETTLE_MS = 1200
 
-export type CalibrationPhase = 'upright' | 'leaned' | 'done'
 
 
 /** Everything the HUD renders, quantised so React only wakes on real change. */
@@ -132,6 +130,10 @@ class HandStabiliser {
     return this.classifier.update(hand)
   }
 
+  setThumbBand(on: number, off: number): void {
+    this.classifier.setThumbBand(on, off)
+  }
+
   /** Mean landmark travel since the last frame: high in transit, near zero held. */
   motion(hand: HandState): number {
     const points = hand.points
@@ -176,13 +178,13 @@ export class Engine {
   private leaned = false
   /** The player's own upright and their own lean, measured rather than assumed. */
   private lean: LeanCalibration = DEFAULT_LEAN
+  private calibration: Calibration | null = null
   private cal: {
-    phase: CalibrationPhase
-    samples: number[]
-    upright: number[]
+    index: number
+    samples: Samples
     settleUntil: number
-    onPhase: (phase: CalibrationPhase) => void
-    onDone: (cal: LeanCalibration | null) => void
+    onStep: (step: Step | null) => void
+    onDone: (result: ReturnType<typeof derive>) => void
   } | null = null
   private held: Identity | null = null
   /** The pose a song is asking for, drawn on the hand that has to make it. */
@@ -261,11 +263,19 @@ export class Engine {
    * between two things that were observed rather than one that was assumed.
    */
   beginCalibration(
-    onPhase: (phase: CalibrationPhase) => void,
-    onDone: (cal: LeanCalibration | null) => void,
+    onStep: (step: Step | null) => void,
+    onDone: (result: ReturnType<typeof derive>) => void,
   ): void {
-    this.cal = { phase: 'upright', samples: [], upright: [], settleUntil: 0, onPhase, onDone }
-    onPhase('upright')
+    this.cal = { index: 0, samples: {}, settleUntil: 0, onStep, onDone }
+    onStep(STEPS[0])
+  }
+
+  /** Applies a stored or freshly measured calibration to everything it covers. */
+  setCalibration(calibration: Calibration): void {
+    this.calibration = calibration
+    this.lean = calibration.lean
+    this.stable.left.setThumbBand(calibration.thumb.on, calibration.thumb.off)
+    this.stable.right.setThumbBand(calibration.thumb.on, calibration.thumb.off)
   }
 
   cancelCalibration(): void {
@@ -315,7 +325,7 @@ export class Engine {
 
     const leftFingers = left && this.stable.left.fingers(left)
     const rightFingers = right && this.stable.right.fingers(right)
-    const leftHeight = left ? this.stable.left.height(left.height) : 0
+    const leftHeight = left ? this.reach(this.stable.left.height(left.height)) : 0
 
     const { volume, tilt } = this.readExpression(right, left, leftHeight)
     this.synth.setTilt(tilt)
@@ -330,7 +340,7 @@ export class Engine {
     // first. Neutral is not one angle: people hold a horns pose at a genuinely
     // different attitude from a pointing finger.
     const smoothedRoll = left ? this.stable.left.roll(left.roll) : null
-    if (this.cal) this.sample(liveLeft, smoothedRoll, degree, now)
+    if (this.cal) this.sample(liveLeft, degree, now)
     this.leaned = isLeaned(smoothedRoll, degree, this.leaned, this.lean)
     const major = majorFor(degree, this.leaned)
 
@@ -441,7 +451,7 @@ export class Engine {
   ): { volume: number; tilt: number } {
     if (right) {
       return {
-        volume: this.stable.right.height(right.height),
+        volume: this.reach(this.stable.right.height(right.height)),
         tilt: this.stable.right.tilt(right.tilt),
       }
     }
@@ -454,34 +464,38 @@ export class Engine {
    * that is actually in view, confident, holding a recognised pose, and still.
    * A sample taken mid-move measures the move, not the hold.
    */
-  private sample(
-    live: HandState | null,
-    roll: number | null,
-    degree: number | null,
-    now: number,
-  ): void {
+  /** Frame height mapped onto the range this player actually uses. */
+  private reach(height: number): number {
+    return this.calibration ? reachTo01(height, this.calibration.reach) : height
+  }
+
+  private sample(live: HandState | null, degree: number | null, now: number): void {
     const cal = this.cal
     if (!cal || now < cal.settleUntil) return
-    if (!live || roll === null || degree === null) return
+    const step = STEPS[cal.index]
+    if (!step || !live) return
+    // A sample taken mid-move measures the move, not the hold.
     if (this.stable.left.motion(live) > STILL) return
 
-    cal.samples.push(roll - neutralRollFor(degree))
-    if (cal.samples.length < CALIBRATION_FRAMES) return
+    const value = step.sample(live, degree)
+    if (value === null) return
 
-    if (cal.phase === 'upright') {
-      cal.upright = cal.samples
-      cal.samples = []
-      cal.phase = 'leaned'
-      // A beat to change pose, so the move itself is never sampled.
+    const bucket = (cal.samples[step.id] ??= [])
+    bucket.push(value)
+    if (bucket.length < CALIBRATION_FRAMES) return
+
+    cal.index++
+    if (cal.index < STEPS.length) {
+      // A beat to change pose, so changing it is never mistaken for the pose.
       cal.settleUntil = now + CALIBRATION_SETTLE_MS
-      cal.onPhase('leaned')
+      cal.onStep(STEPS[cal.index])
       return
     }
 
-    const result = calibrationFrom(cal.upright, cal.samples)
-    if (result) this.lean = result
+    const result = derive(cal.samples)
+    if ('calibration' in result) this.setCalibration(result.calibration)
     this.cal = null
-    cal.onPhase('done')
+    cal.onStep(null)
     cal.onDone(result)
   }
 

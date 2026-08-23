@@ -20,7 +20,8 @@
     "audio": "node scripts/audio-check.mjs",
     "build:pages": "npm run assets && STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/airchord next build",
     "preview": "node scripts/serve-static.mjs",
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "replay": "node scripts/replay-check.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.14",

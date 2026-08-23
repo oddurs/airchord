@@ -47,5 +47,13 @@ jobs:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
           AUDIO_CHECK_URL: https://localhost:9191/
         run: npm run audio
+      # Replays a session through the real engine and checks it stays put. Held
+      # poses cannot measure steadiness; only transitions can, and this is the
+      # property that has actually kept failing.
+      - name: Replay a session
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+          REPLAY_CHECK_URL: https://localhost:9191/
+        run: npm run replay
       - if: failure()
         run: cat dev.log

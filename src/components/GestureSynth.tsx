@@ -11,6 +11,8 @@ import Controls from './Controls'
 import Guide from './Guide'
 import Landing from './Landing'
 import Readout from './Readout'
+import { useRecorder } from '@/hooks/useRecorder'
+import { KEYS } from '@/lib/chords'
 import Hud from './Hud'
 import SongPanel from './SongPanel'
 import Welcome from './Welcome'
@@ -62,6 +64,7 @@ export default function GestureSynth() {
   const [guideOpen, setGuideOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [readoutOpen, setReadoutOpen] = useState(false)
+  const recorder = useRecorder(observe, KEYS[keyIndex]?.name ?? 'E')
   // ?debug opens it without hunting for the control.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('debug')) setReadoutOpen(true)
@@ -105,6 +108,9 @@ export default function GestureSynth() {
         onCalibrate={calibrateLean}
         readoutOpen={readoutOpen}
         onToggleReadout={() => setReadoutOpen((open) => !open)}
+        recording={recorder.recording}
+        recordingSeconds={recorder.seconds}
+        onToggleRecording={recorder.toggle}
       />
       {guideOpen && !capturing && <Guide />}
       {phase === 'running' && songsOpen && !capturing && !tour.active && (

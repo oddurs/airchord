@@ -201,6 +201,9 @@ export function useGestureSynth() {
     void import('@/lib/audio-check').then(({ runAudioCheck }) => {
       ;(window as Window & { __audioCheck?: unknown }).__audioCheck = runAudioCheck
     })
+    void import('@/lib/replay-check').then(({ runReplayCheck }) => {
+      ;(window as Window & { __replayCheck?: unknown }).__replayCheck = runReplayCheck
+    })
   }, [])
 
   useEffect(() => {

@@ -135,10 +135,29 @@ test('register follows the height of the chord hand', () => {
 test('register holds through drift near a boundary', () => {
   // A hand hovering at a boundary must not flicker between octaves — an octave
   // is the largest change the instrument can make.
-  assert.equal(registerFromHeight(0.36, -1), -1, 'just over, still low')
-  assert.equal(registerFromHeight(0.32, 0), 0, 'just under, still mid')
-  assert.equal(registerFromHeight(0.64, 1), 1, 'just under, still high')
+  assert.equal(registerFromHeight(0.28, -1), -1, 'just over, still low')
+  assert.equal(registerFromHeight(0.2, 0), 0, 'just under, still mid')
+  assert.equal(registerFromHeight(0.74, 1), 1, 'just under, still high')
   // But a decisive move always wins.
-  assert.equal(registerFromHeight(0.8, -1), 1)
-  assert.equal(registerFromHeight(0.1, 1), -1)
+  assert.equal(registerFromHeight(0.95, -1), 1)
+  assert.equal(registerFromHeight(0.05, 1), -1)
+})
+
+test('ordinary playing height stays in the middle register', () => {
+  // A chord hand wanders while playing. Everything from a low-but-playing hand
+  // to a raised one has to mean the same octave, or the instrument transposes
+  // itself while you are trying to play it.
+  for (const height of [0.25, 0.35, 0.5, 0.65, 0.75]) {
+    assert.equal(registerFromHeight(height, 0), 0, `height ${height} should stay in register`)
+  }
+})
+
+test('reaching a different register takes a deliberate move', () => {
+  // Leaving the middle needs to clear the guard as well as the boundary, so
+  // brushing the edge of your range is not enough.
+  assert.equal(registerFromHeight(0.1, 0), -1, 'genuinely low')
+  assert.equal(registerFromHeight(0.95, 0), 1, 'genuinely high')
+  // And having got there, small drift does not immediately undo it.
+  assert.equal(registerFromHeight(0.26, -1), -1)
+  assert.equal(registerFromHeight(0.75, 1), 1)
 })

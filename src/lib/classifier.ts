@@ -86,9 +86,15 @@ export class FingerClassifier {
  * Boundaries overlap by GUARD so a hand drifting near one holds its register
  * rather than flickering across it.
  */
-export const REGISTER_LOW = 0.34
-export const REGISTER_HIGH = 0.66
-const GUARD = 0.05
+/**
+ * The middle register is deliberately the widest by a long way. Ordinary playing
+ * drifts up and down without meaning anything by it, and an octave is the
+ * largest change the instrument makes — so reaching for another register should
+ * take a deliberate move to the top or bottom of your range, not a wander.
+ */
+export const REGISTER_LOW = 0.22
+export const REGISTER_HIGH = 0.8
+const GUARD = 0.08
 
 /** -1 an octave down, 0 as written, +1 an octave up. */
 export function registerFromHeight(height: number, previous: number): number {

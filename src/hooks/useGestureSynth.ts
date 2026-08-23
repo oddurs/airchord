@@ -173,16 +173,36 @@ export function useGestureSynth() {
       }
       document.addEventListener('visibilitychange', onHidden)
       window.addEventListener('pagehide', silence)
-      for (const track of stream.getVideoTracks()) {
-        track.addEventListener('ended', () => {
-          silence()
-          setError('The camera stopped. Reconnect it and reload.')
-          setPhase('error')
-        })
+      const lost = (message: string) => {
+        silence()
+        setError(message)
+        setPhase('error')
       }
+      for (const track of stream.getVideoTracks()) {
+        track.addEventListener('ended', () => lost('The camera stopped. Reconnect it and try again.'))
+      }
+
+      // A camera can disappear without its track ending — unplugged while the
+      // tab is hidden, or claimed by another application. Watching the device
+      // list catches what the track event misses.
+      const active = stream.getVideoTracks()[0]?.getSettings().deviceId
+      const onDeviceChange = async () => {
+        if (!active) return
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const stillThere = devices.some((d) => d.kind === 'videoinput' && d.deviceId === active)
+          if (!stillThere) lost('That camera is no longer available. Try again to pick another.')
+        } catch {
+          // Enumeration can fail transiently; a missing answer is not a missing
+          // camera, so this stays quiet rather than stopping the instrument.
+        }
+      }
+      navigator.mediaDevices.addEventListener?.('devicechange', onDeviceChange)
       cleanupRef.current = () => {
         document.removeEventListener('visibilitychange', onHidden)
         window.removeEventListener('pagehide', silence)
+        navigator.mediaDevices.removeEventListener?.('devicechange', onDeviceChange)
+        for (const track of stream?.getTracks() ?? []) track.stop()
       }
     } catch (err) {
       // Keep the raw failure in the console; the message on screen is for a
@@ -214,6 +234,21 @@ export function useGestureSynth() {
       const stream = videoRef.current?.srcObject
       if (stream instanceof MediaStream) stream.getTracks().forEach((t) => t.stop())
     }
+  }, [])
+
+  /**
+   * Tears the session down and returns to the start, so a camera that was
+   * unplugged or claimed by another application is recoverable without
+   * reloading — which would also throw away the calibration for this session.
+   */
+  const retry = useCallback(() => {
+    cancelAnimationFrame(frameRef.current)
+    cleanupRef.current?.()
+    cleanupRef.current = null
+    engineRef.current?.dispose()
+    engineRef.current = null
+    setError('')
+    setPhase('idle')
   }, [])
 
   const setTimbre = useCallback((id: TimbreId) => {
@@ -293,6 +328,7 @@ export function useGestureSynth() {
     calibrateLean,
     calibration,
     readDiagnostics,
+    retry,
     setTarget,
     onCommit,
     audio,

@@ -37,6 +37,7 @@ export default function GestureSynth() {
     calibrateLean,
     calibration,
     readDiagnostics,
+    retry,
     setTarget,
     onCommit,
     audio,
@@ -138,7 +139,14 @@ export default function GestureSynth() {
       {phase === 'running' && hud.hands === 0 && !tour.active && (
         <p className={`${styles.hint} label`}>Hold both hands up to the camera</p>
       )}
-      {phase === 'error' && <p className={styles.status}>{error}</p>}
+      {phase === 'error' && (
+        <div className={styles.status}>
+          <p>{error}</p>
+          <button type="button" className={`${styles.again} label`} onClick={retry}>
+            Try again
+          </button>
+        </div>
+      )}
 
       {(phase === 'idle' || phase === 'loading') && (
         <Landing phase={phase} stage={stage} progress={progress} onStart={start} />

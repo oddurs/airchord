@@ -85,3 +85,22 @@
   color: var(--ink-quiet);
   font-size: 13px;
 }
+
+/* Recovering should not mean reloading: a reload also throws away the
+   calibration measured for this session. */
+.again {
+  margin-top: 16px;
+  padding: 8px 0 0;
+  min-width: 160px;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  font: inherit;
+  font-size: var(--label-size);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-full);
+  cursor: pointer;
+  pointer-events: auto;
+}

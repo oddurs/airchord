@@ -3,6 +3,7 @@
 import { KEYS } from '@/lib/chords'
 import { BPM_RANGE, SIGNATURES } from '@/lib/beat'
 import { TIMBRES, type TimbreId } from '@/lib/timbre'
+import type { CalibrationStatus } from '@/hooks/useGestureSynth'
 import styles from './Controls.module.css'
 
 interface Props {
@@ -19,8 +20,16 @@ interface Props {
   onOpenAbout: () => void
   latched: boolean
   onToggleLatch: () => void
-  calibration: 'idle' | 'sampling' | 'done'
+  calibration: CalibrationStatus
   onCalibrate: () => void
+}
+
+const CALIBRATION_LABEL: Record<CalibrationStatus, string> = {
+  idle: 'Calibrate',
+  upright: 'Hold upright…',
+  leaned: 'Now lean…',
+  done: 'Calibrated',
+  failed: 'Try again',
 }
 
 export default function Controls({
@@ -125,7 +134,7 @@ export default function Controls({
           onClick={onCalibrate}
           title="Hold your chord hand upright and comfortable for two seconds"
         >
-          {calibration === 'sampling' ? 'Hold still…' : calibration === 'done' ? 'Calibrated' : 'Calibrate'}
+          {CALIBRATION_LABEL[calibration]}
         </button>
       </nav>
     </div>

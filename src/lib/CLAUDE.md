@@ -27,6 +27,11 @@ input. Register now follows the height of the chord hand, which is stable, conti
 otherwise unused while both hands are up. The thumb still counts toward the scale degree, where
 being occasionally wrong costs one step rather than a whole octave.
 
+**Degree VII is the leading tone, one semitone below the tonic — not the subtonic.**
+An earlier note here said otherwise and an argument about modal folk was built on it. The chord
+there is diatonically diminished; the instrument has no diminished triad at that voicing, so it
+defaults to minor as the nearer of the two available.
+
 **A hand held upright does not read zero roll.** The dataset puts a neutral left hand at +0.05 to
 +0.16 radians and a neutral right at −0.11 — anatomy, and opposite for the two hands. The major/minor
 band therefore sits below zero rather than straddling it.

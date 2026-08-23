@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTracker, loadModel, readHands } from '@/lib/vision'
 import { KEYS } from '@/lib/chords'
-import { Engine, IDLE_HUD, hudEqual, type Hud } from '@/lib/engine'
+import { Engine, IDLE_HUD, hudEqual, type CalibrationPhase, type Hud } from '@/lib/engine'
+import type { LeanCalibration } from '@/lib/chords'
 import type { PoseTarget } from '@/lib/pose'
 import { DEFAULT_TIMBRE, type TimbreId } from '@/lib/timbre'
 import { recall, remember } from '@/lib/remember'
@@ -52,14 +53,19 @@ function describe(err: unknown): string {
   }
 }
 
-const LEAN_OFFSET_KEY = 'airchord.leanOffset'
+const LEAN_KEY = 'airchord.lean'
 
-function readLeanOffset(): number {
+export type CalibrationStatus = 'idle' | CalibrationPhase | 'failed'
+
+function readLean(): LeanCalibration | null {
   try {
-    const saved = Number(window.localStorage.getItem(LEAN_OFFSET_KEY))
-    return Number.isFinite(saved) ? saved : 0
+    const raw = window.localStorage.getItem(LEAN_KEY)
+    if (!raw) return null
+    const saved = JSON.parse(raw) as LeanCalibration
+    const ok = [saved?.offset, saved?.on, saved?.off].every((v) => Number.isFinite(v))
+    return ok ? saved : null
   } catch {
-    return 0
+    return null
   }
 }
 
@@ -79,7 +85,7 @@ export function useGestureSynth() {
   const [stage, setStage] = useState<Stage>('audio')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
-  const [calibration, setCalibration] = useState<'idle' | 'sampling' | 'done'>('idle')
+  const [calibration, setCalibration] = useState<CalibrationStatus>('idle')
 
   useEffect(() => {
     keyRef.current = keyIndex
@@ -102,7 +108,8 @@ export function useGestureSynth() {
       setStage('audio')
       const engine = new Engine(canvas)
       engineRef.current = engine
-      engine.setLeanOffset(readLeanOffset())
+      const saved = readLean()
+      if (saved) engine.setLean(saved)
       await engine.start()
 
       setStage('camera')
@@ -223,16 +230,22 @@ export function useGestureSynth() {
   const calibrateLean = useCallback(() => {
     const engine = engineRef.current
     if (!engine) return
-    setCalibration('sampling')
-    engine.calibrateLean((offset) => {
-      try {
-        window.localStorage.setItem(LEAN_OFFSET_KEY, String(offset))
-      } catch {
-        // Private browsing, or storage disabled. The offset still applies to
-        // this session; it just will not be remembered.
-      }
-      setCalibration('done')
-    })
+    engine.beginCalibration(
+      (phase) => setCalibration(phase),
+      (result) => {
+        if (!result) {
+          // The two holds were not far enough apart to tell one from the other.
+          setCalibration('failed')
+          return
+        }
+        try {
+          window.localStorage.setItem(LEAN_KEY, JSON.stringify(result))
+        } catch {
+          // Private browsing. It applies to this session, just isn't remembered.
+        }
+        setCalibration('done')
+      },
+    )
   }, [])
 
   const toggleLatch = useCallback(() => {

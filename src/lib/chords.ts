@@ -29,9 +29,13 @@ export const KEYS: Key[] = [
 ]
 
 /**
- * Semitones from the tonic for each degree. VII is the subtonic *below* the
- * tonic, not the leading tone above it — deliberate, and easy to "correct" by
- * mistake into something that sounds wrong.
+ * Semitones from the tonic for each degree. VII is -1: the leading tone, a
+ * semitone *below* the tonic rather than a seventh above it. That octave
+ * displacement is deliberate and easy to "correct" by mistake into something
+ * that sounds wrong.
+ *
+ * (An earlier comment here called it the subtonic. It is not — a subtonic would
+ * be -2, a whole tone below.)
  */
 const DEGREE_SEMITONES = [0, 2, 4, 5, 7, 9, -1]
 
@@ -147,6 +151,17 @@ const NEUTRAL_ROLL = [0.054, 0.068, 0.072, 0.092, 0.086, 0.136, 0.162]
 const MINOR_ON = -0.16
 const MINOR_OFF = -0.075
 
+/** A calibrated band replaces the defaults once a player has measured their own. */
+export interface LeanCalibration {
+  /** Where this player's upright hand sits, relative to the built-in neutral. */
+  offset: number
+  /** Lean at which the hand counts as leaned, and at which it stops. */
+  on: number
+  off: number
+}
+
+export const DEFAULT_LEAN: LeanCalibration = { offset: 0, on: MINOR_ON, off: MINOR_OFF }
+
 /** The same band, for anything that has to *draw* the decision. Exported rather
  *  than duplicated: a lean cue that disagrees with the lean is worse than none. */
 export const LEAN_BAND = { minor: MINOR_ON, major: MINOR_OFF }
@@ -178,10 +193,12 @@ export function leanOf(roll: number, degree: number | null, offset = 0): number 
  * Two fingers in E gave F# major, which is not in E. Playing in a key should not
  * require fighting the instrument on more than half its chords.
  *
- * Degree VII is the subtonic, a whole tone below the tonic, and that chord is
- * major.
+ * Degree VII sits on the leading tone, where the diatonic chord is diminished.
+ * The instrument has no diminished triad at this voicing, and minor is much the
+ * closer of the two available: against F#dim (F# A C), F#m shares two notes
+ * where F# major shares one and adds an A# that is in no part of the key.
  */
-const DIATONIC_MAJOR = [true, false, false, true, true, false, true]
+const DIATONIC_MAJOR = [true, false, false, true, true, false, false]
 
 export function diatonicMajor(degree: number | null): boolean {
   if (degree === null) return true
@@ -193,13 +210,29 @@ export function isLeaned(
   roll: number | null,
   degree: number | null,
   wasLeaned: boolean,
-  offset = 0,
+  cal: LeanCalibration = DEFAULT_LEAN,
 ): boolean {
   if (roll === null) return false
-  const lean = leanOf(roll, degree, offset)
-  if (lean < MINOR_ON) return true
-  if (lean > MINOR_OFF) return false
+  const lean = leanOf(roll, degree, cal.offset)
+  if (lean < cal.on) return true
+  if (lean > cal.off) return false
   return wasLeaned
+}
+
+/**
+ * Turns two held samples into a band. Thresholds are placed between where this
+ * player holds upright and where they actually lean, and scaled to that
+ * distance — so a small lean and a theatrical one both work, and neither is
+ * assumed. Falls back to the defaults if the two are too close to separate.
+ */
+export function calibrationFrom(upright: number[], leaned: number[]): LeanCalibration | null {
+  if (upright.length < 15 || leaned.length < 15) return null
+  const mid = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]
+  const offset = mid(upright)
+  const travel = mid(leaned) - offset
+  // A lean must be a real move away from upright, and in the leaning direction.
+  if (travel > -0.05) return null
+  return { offset, on: travel * 0.55, off: travel * 0.28 }
 }
 
 /**

@@ -105,7 +105,7 @@ export function describeLandmarks(
     roll: readRoll(points),
     tilt: readTilt(points),
     height: clamp01((VOLUME_BOTTOM - points[WRIST].y) / (VOLUME_BOTTOM - VOLUME_TOP)),
-    inFrame: [WRIST, INDEX_MCP, PINKY_MCP].every((i) => inside(points[i])),
+    inFrame: mostlyInFrame(points),
   }
 }
 
@@ -202,8 +202,28 @@ function distance(a: Point3, b: Point3): number {
 }
 
 /** A little tolerance, so a hand at the very edge still counts as present. */
+/**
+ * How far outside the frame a landmark has to be before it counts as gone, and
+ * how many may be gone before the hand is treated as leaving.
+ *
+ * The first version required the wrist and both outer knuckles to be inside a
+ * 2% margin — the palm, essentially — so a palm edging out of shot stopped the
+ * instrument even though every finger was plainly visible. A hand is leaving
+ * when most of it has gone, not when part of the palm has.
+ */
+const OUT_MARGIN = 0.06
+const MAX_OUTSIDE = 8
+
 function inside(p: Point): boolean {
-  return p.x > -0.02 && p.x < 1.02 && p.y > -0.02 && p.y < 1.02
+  return (
+    p.x > -OUT_MARGIN && p.x < 1 + OUT_MARGIN && p.y > -OUT_MARGIN && p.y < 1 + OUT_MARGIN
+  )
+}
+
+function mostlyInFrame(points: Point[]): boolean {
+  let out = 0
+  for (const p of points) if (!inside(p)) out++
+  return out <= MAX_OUTSIDE
 }
 
 export function clamp01(v: number): number {

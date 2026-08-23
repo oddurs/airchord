@@ -3,9 +3,12 @@ import { FingerClassifier, registerFromHeight } from './classifier'
 import {
   buildChord,
   degreeFromFingers,
+  DEFAULT_LEAN,
+  calibrationFrom,
   isLeaned,
   majorFor,
   neutralRollFor,
+  type LeanCalibration,
   voicingFromFingers,
   type Chord,
   type Key,
@@ -56,8 +59,12 @@ const CONFIDENT_OFF = 0.5
 /** Starting with your hands already raised should not begin at full volume. */
 const EASE_IN_MS = 700
 
-/** Frames of upright hand to average when calibrating. About two seconds. */
-const CALIBRATION_FRAMES = 60
+/** Still frames to gather per calibration step. */
+const CALIBRATION_FRAMES = 45
+/** A beat between steps, so changing pose is never mistaken for the pose. */
+const CALIBRATION_SETTLE_MS = 1200
+
+export type CalibrationPhase = 'upright' | 'leaned' | 'done'
 
 
 /** Everything the HUD renders, quantised so React only wakes on real change. */
@@ -167,10 +174,16 @@ export class Engine {
   /** Whether the hand is leaned away from upright — not the quality itself.
    *  Quality is that plus what the degree already is in the key. */
   private leaned = false
-  /** The player's own upright, measured rather than assumed. */
-  private leanOffset = 0
-  private calibrating: number[] | null = null
-  private onCalibrated: ((offset: number) => void) | null = null
+  /** The player's own upright and their own lean, measured rather than assumed. */
+  private lean: LeanCalibration = DEFAULT_LEAN
+  private cal: {
+    phase: CalibrationPhase
+    samples: number[]
+    upright: number[]
+    settleUntil: number
+    onPhase: (phase: CalibrationPhase) => void
+    onDone: (cal: LeanCalibration | null) => void
+  } | null = null
   private held: Identity | null = null
   /** The pose a song is asking for, drawn on the hand that has to make it. */
   private target: PoseTarget | null = null
@@ -242,14 +255,25 @@ export class Engine {
    */
   onCommit: ((degree: number, major: boolean, at: number) => void) | null = null
 
-  /** Hold an upright hand: whatever it reads becomes this player's zero. */
-  calibrateLean(onCalibrated: (offset: number) => void): void {
-    this.calibrating = []
-    this.onCalibrated = onCalibrated
+  /**
+   * Two held samples: where this player's hand sits upright, and where it sits
+   * when they lean for a minor chord. Both ends measured, so the band is placed
+   * between two things that were observed rather than one that was assumed.
+   */
+  beginCalibration(
+    onPhase: (phase: CalibrationPhase) => void,
+    onDone: (cal: LeanCalibration | null) => void,
+  ): void {
+    this.cal = { phase: 'upright', samples: [], upright: [], settleUntil: 0, onPhase, onDone }
+    onPhase('upright')
   }
 
-  setLeanOffset(offset: number): void {
-    this.leanOffset = offset
+  cancelCalibration(): void {
+    this.cal = null
+  }
+
+  setLean(cal: LeanCalibration): void {
+    this.lean = cal
   }
 
   /** Lets the capture tool see every frame without threading it through React. */
@@ -306,18 +330,8 @@ export class Engine {
     // first. Neutral is not one angle: people hold a horns pose at a genuinely
     // different attitude from a pointing finger.
     const smoothedRoll = left ? this.stable.left.roll(left.roll) : null
-    // Calibration samples where this player actually holds an upright hand.
-    if (this.calibrating && smoothedRoll !== null && degree !== null) {
-      this.calibrating.push(smoothedRoll - neutralRollFor(degree))
-      if (this.calibrating.length >= CALIBRATION_FRAMES) {
-        const samples = [...this.calibrating].sort((a, b) => a - b)
-        // Median, so one twitch during the hold cannot skew the result.
-        this.leanOffset = samples[Math.floor(samples.length / 2)]
-        this.calibrating = null
-        this.onCalibrated?.(this.leanOffset)
-      }
-    }
-    this.leaned = isLeaned(smoothedRoll, degree, this.leaned, this.leanOffset)
+    if (this.cal) this.sample(liveLeft, smoothedRoll, degree, now)
+    this.leaned = isLeaned(smoothedRoll, degree, this.leaned, this.lean)
     const major = majorFor(degree, this.leaned)
 
     // Register follows the height of the chord hand. It used to ride the right
@@ -433,6 +447,42 @@ export class Engine {
     }
     if (left) return { volume: leftHeight, tilt: 0 }
     return { volume: 0.5, tilt: 0 }
+  }
+
+  /**
+   * Collects a calibration sample, but only from a frame worth trusting: a hand
+   * that is actually in view, confident, holding a recognised pose, and still.
+   * A sample taken mid-move measures the move, not the hold.
+   */
+  private sample(
+    live: HandState | null,
+    roll: number | null,
+    degree: number | null,
+    now: number,
+  ): void {
+    const cal = this.cal
+    if (!cal || now < cal.settleUntil) return
+    if (!live || roll === null || degree === null) return
+    if (this.stable.left.motion(live) > STILL) return
+
+    cal.samples.push(roll - neutralRollFor(degree))
+    if (cal.samples.length < CALIBRATION_FRAMES) return
+
+    if (cal.phase === 'upright') {
+      cal.upright = cal.samples
+      cal.samples = []
+      cal.phase = 'leaned'
+      // A beat to change pose, so the move itself is never sampled.
+      cal.settleUntil = now + CALIBRATION_SETTLE_MS
+      cal.onPhase('leaned')
+      return
+    }
+
+    const result = calibrationFrom(cal.upright, cal.samples)
+    if (result) this.lean = result
+    this.cal = null
+    cal.onPhase('done')
+    cal.onDone(result)
   }
 
   /** Dev-only: raw features plus the latency budget, for tuning against real play. */

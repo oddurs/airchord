@@ -4,7 +4,8 @@ import {
   KEYS,
   buildChord,
   degreeFromFingers,
-  leanToMajor,
+  isLeaned,
+  majorFor,
   neutralRollFor,
   voicingFromFingers,
   type Gesture,
@@ -96,10 +97,11 @@ const MEASURED = { E: 0.065, Gsharp: 0.055, A: 0.18, Am: -0.115 }
 test('the lean threshold separates the majors from the minor in real footage', () => {
   // Degrees matter now: lean is read against where an upright hand sits for the
   // pose being made, which is not the same angle for one finger and for four.
-  assert.equal(leanToMajor(MEASURED.E, 1, true), true)
-  assert.equal(leanToMajor(MEASURED.Gsharp, 3, true), true)
-  assert.equal(leanToMajor(MEASURED.A, 4, true), true)
-  assert.equal(leanToMajor(MEASURED.Am, 4, true), false, 'a rolled hand must reach minor')
+  // Upright reads as not leaned, whatever the degree.
+  assert.equal(isLeaned(MEASURED.E, 1, false), false)
+  assert.equal(isLeaned(MEASURED.Gsharp, 3, false), false)
+  assert.equal(isLeaned(MEASURED.A, 4, false), false)
+  assert.equal(isLeaned(MEASURED.Am, 4, false), true, 'a rolled hand must register as leaned')
 })
 
 test('the lean holds its last state inside the dead band', () => {
@@ -107,19 +109,33 @@ test('the lean holds its last state inside the dead band', () => {
   // Zero is therefore already a major reading, not an undecided one — which is
   // the whole point: straightening up must escape minor.
   const neutral = neutralRollFor(1)
-  assert.equal(leanToMajor(neutral, 1, false), true, 'upright escapes minor')
+  assert.equal(isLeaned(neutral, 1, true), false, 'upright stops being leaned')
   // Upright hands vary by up to 0.054 below neutral, and every one of those must
-  // escape minor — so the ambiguous band sits well below, not around, neutral.
-  assert.equal(leanToMajor(neutral - 0.054, 1, false), true, 'the lowest upright frame still escapes')
-  assert.equal(leanToMajor(neutral - 0.12, 1, true), true, 'inside the band, still major')
-  assert.equal(leanToMajor(neutral - 0.12, 1, false), false, 'inside the band, still minor')
-  // A decisive lean always wins, whichever way it was leaning before.
-  assert.equal(leanToMajor(neutral - 0.25, 1, true), false)
-  assert.equal(leanToMajor(neutral + 0.2, 1, false), true)
+  // still read upright — so the ambiguous band sits well below, not around, it.
+  assert.equal(isLeaned(neutral - 0.054, 1, true), false, 'the lowest upright frame still reads upright')
+  assert.equal(isLeaned(neutral - 0.12, 1, true), true, 'inside the band, still leaned')
+  assert.equal(isLeaned(neutral - 0.12, 1, false), false, 'inside the band, still upright')
+  // A decisive move always wins, whichever way it was before.
+  assert.equal(isLeaned(neutral - 0.25, 1, false), true)
+  assert.equal(isLeaned(neutral + 0.2, 1, true), false)
 })
 
-test('no left hand means no minor', () => {
-  assert.equal(leanToMajor(null, null, false), true)
+test('no left hand means no lean', () => {
+  assert.equal(isLeaned(null, null, true), false)
+})
+
+test('upright plays the chord the key expects, and leaning borrows the other', () => {
+  // Two fingers in E is degree II, which is F# *minor* in that key. Defaulting
+  // every degree to major is what made most of a key sound wrong.
+  assert.equal(majorFor(1, false), true, 'I is major')
+  assert.equal(majorFor(2, false), false, 'ii is minor')
+  assert.equal(majorFor(3, false), false, 'iii is minor')
+  assert.equal(majorFor(4, false), true, 'IV is major')
+  assert.equal(majorFor(5, false), true, 'V is major')
+  assert.equal(majorFor(6, false), false, 'vi is minor')
+  // Leaning borrows: it flips whatever the degree is in the key.
+  assert.equal(majorFor(2, true), true, 'a leaned ii borrows II')
+  assert.equal(majorFor(4, true), false, 'a leaned IV borrows iv')
 })
 
 test('a thumb alone is never a chord', () => {

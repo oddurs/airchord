@@ -162,12 +162,40 @@ export function leanOf(roll: number, degree: number | null): number {
   return roll - neutralRollFor(degree)
 }
 
-export function leanToMajor(roll: number | null, degree: number | null, wasMajor: boolean): boolean {
-  if (roll === null) return true
+/**
+ * The quality each degree has in the key, before any lean.
+ *
+ * Defaulting every degree to major meant four of the seven — ii, iii, vi and the
+ * subtonic's relative — came out wrong unless the player leaned for each one.
+ * Two fingers in E gave F# major, which is not in E. Playing in a key should not
+ * require fighting the instrument on more than half its chords.
+ *
+ * Degree VII is the subtonic, a whole tone below the tonic, and that chord is
+ * major.
+ */
+const DIATONIC_MAJOR = [true, false, false, true, true, false, true]
+
+export function diatonicMajor(degree: number | null): boolean {
+  if (degree === null) return true
+  return DIATONIC_MAJOR[Math.min(7, Math.max(1, degree)) - 1]
+}
+
+/** Whether the hand is leaned away from upright, for the pose it is making. */
+export function isLeaned(roll: number | null, degree: number | null, wasLeaned: boolean): boolean {
+  if (roll === null) return false
   const lean = leanOf(roll, degree)
-  if (lean < MINOR_ON) return false
-  if (lean > MINOR_OFF) return true
-  return wasMajor
+  if (lean < MINOR_ON) return true
+  if (lean > MINOR_OFF) return false
+  return wasLeaned
+}
+
+/**
+ * Lean *borrows*: it flips the degree away from the quality it has in the key.
+ * Upright plays the chord the key expects; leaning gets you the other one, which
+ * is the whole trick the instrument is for.
+ */
+export function majorFor(degree: number | null, leaned: boolean): boolean {
+  return leaned ? !diatonicMajor(degree) : diatonicMajor(degree)
 }
 
 /** Right-hand voicing: the four non-thumb fingers. */

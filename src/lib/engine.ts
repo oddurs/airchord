@@ -1,6 +1,14 @@
 import type { Fingers, HandState, Side } from './vision'
 import { FingerClassifier, registerFromHeight } from './classifier'
-import { buildChord, degreeFromFingers, leanToMajor, voicingFromFingers, type Chord, type Key } from './chords'
+import {
+  buildChord,
+  degreeFromFingers,
+  isLeaned,
+  majorFor,
+  voicingFromFingers,
+  type Chord,
+  type Key,
+} from './chords'
 import { Committer, Grace, Latch, Smoothed } from './smoothing'
 import type { PoseTarget } from './pose'
 import { Synth, type AudioBridge } from './synth'
@@ -152,7 +160,9 @@ export class Engine {
   private rightGrace = new Grace<HandState>(EXPRESSION_GRACE_MS)
   private identity = new Committer<Identity>(CHORD_HOLD_MS)
   private colour = new Committer<Colour>(COLOUR_HOLD_MS)
-  private isMajor = true
+  /** Whether the hand is leaned away from upright — not the quality itself.
+   *  Quality is that plus what the degree already is in the key. */
+  private leaned = false
   private held: Identity | null = null
   /** The pose a song is asking for, drawn on the hand that has to make it. */
   private target: PoseTarget | null = null
@@ -277,7 +287,8 @@ export class Engine {
     // Lean is read against the pose being made, so the degree has to be known
     // first. Neutral is not one angle: people hold a horns pose at a genuinely
     // different attitude from a pointing finger.
-    this.isMajor = leanToMajor(left ? this.stable.left.roll(left.roll) : null, degree, this.isMajor)
+    this.leaned = isLeaned(left ? this.stable.left.roll(left.roll) : null, degree, this.leaned)
+    const major = majorFor(degree, this.leaned)
 
     // Register follows the height of the chord hand. It used to ride the right
     // thumb — the least reliable measurement in the instrument, and invisible
@@ -286,7 +297,7 @@ export class Engine {
     if (liveLeft) this.register = registerFromHeight(leftHeight, this.register)
 
     const identity =
-      degree === null ? null : { degree, major: this.isMajor, octave: this.register }
+      degree === null ? null : { degree, major, octave: this.register }
     const expected =
       identity !== null &&
       this.target !== null &&

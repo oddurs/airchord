@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { FingerClassifier } from './classifier.ts'
 import { describeLandmarks } from './features.ts'
-import { degreeFromFingers, leanToMajor } from './chords.ts'
+import { degreeFromFingers, isLeaned } from './chords.ts'
 import type { Dataset, Sample } from './capture.ts'
 
 /**
@@ -69,7 +69,7 @@ test('poses that mean nothing produce no chord', { skip: dataset ? false : 'no d
   }
 })
 
-test('an upright hand always reads major, whatever it played before', () => {
+test('an upright hand always reads upright, whatever it played before', () => {
   // The reported bug: after a minor chord, straightening into a single finger
   // kept playing minor. Every pose in the dataset was held upright, so every one
   // must resolve to major even when the previous answer was minor.
@@ -81,11 +81,11 @@ test('an upright hand always reads major, whatever it played before', () => {
   }
   for (const sample of upright) {
     const degree = DEGREE[sample.label] ?? null
-    let major = false // worst case: coming out of a minor chord
+    let leaned = true // worst case: coming out of a leaned chord
     let majorFrames = 0
     for (const frame of sample.frames) {
-      major = leanToMajor(describeLandmarks(frame, sample.side).roll, degree, major)
-      if (major) majorFrames++
+      leaned = isLeaned(describeLandmarks(frame, sample.side).roll, degree, leaned)
+      if (!leaned) majorFrames++
     }
     // Checking only the final frame is what let a regression through: a pose can
     // end major having spent most of its frames stuck in minor, which is exactly
@@ -93,7 +93,7 @@ test('an upright hand always reads major, whatever it played before', () => {
     const share = majorFrames / sample.frames.length
     assert.ok(
       share > 0.95,
-      `${sample.label} read major in only ${Math.round(share * 100)}% of upright frames`,
+      `${sample.label} read upright in only ${Math.round(share * 100)}% of its frames`,
     )
   }
 })

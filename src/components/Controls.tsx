@@ -4,6 +4,7 @@ import { KEYS } from '@/lib/chords'
 import { BPM_RANGE, SIGNATURES } from '@/lib/beat'
 import { TIMBRES, type TimbreId } from '@/lib/timbre'
 import type { CalibrationState } from '@/hooks/useGestureSynth'
+import type { MidiPort, MidiStatus } from '@/lib/midi'
 import styles from './Controls.module.css'
 
 interface Props {
@@ -27,6 +28,19 @@ interface Props {
   recording: boolean
   recordingSeconds: number
   onToggleRecording: () => void
+  midiStatus: MidiStatus
+  midiPorts: MidiPort[]
+  midiPort: string
+  onEnableMidi: () => void
+  onSelectMidiPort: (id: string) => void
+}
+
+const MIDI_LABEL: Record<MidiStatus, string> = {
+  unsupported: 'No MIDI here',
+  idle: 'MIDI',
+  asking: 'Asking…',
+  ready: 'MIDI',
+  denied: 'MIDI refused',
 }
 
 export default function Controls({
@@ -50,6 +64,11 @@ export default function Controls({
   recording,
   recordingSeconds,
   onToggleRecording,
+  midiStatus,
+  midiPorts,
+  midiPort,
+  onEnableMidi,
+  onSelectMidiPort,
 }: Props) {
   return (
     <div className={styles.controls}>
@@ -114,6 +133,23 @@ export default function Controls({
         </label>
       )}
 
+      {midiStatus === 'ready' && midiPorts.length > 0 && (
+        <label className={styles.field}>
+          <span className={`${styles.name} label`}>MIDI</span>
+          <select
+            className={styles.select}
+            value={midiPort}
+            onChange={(e) => onSelectMidiPort(e.target.value)}
+          >
+            {midiPorts.map((port) => (
+              <option key={port.id} value={port.id}>
+                {port.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       <nav className={styles.links}>
         <button
           type="button"
@@ -166,6 +202,21 @@ export default function Controls({
         >
           {recording ? `Recording ${recordingSeconds}s` : 'Record'}
         </button>
+        {midiStatus !== 'ready' && (
+          <button
+            type="button"
+            className={`${styles.link} label`}
+            onClick={onEnableMidi}
+            disabled={midiStatus === 'unsupported' || midiStatus === 'asking'}
+            title={
+              midiStatus === 'unsupported'
+                ? 'This browser does not support MIDI out — Chrome or Firefox do'
+                : 'Play any instrument that takes MIDI'
+            }
+          >
+            {MIDI_LABEL[midiStatus]}
+          </button>
+        )}
       </nav>
 
       {(calibration.step || calibration.problem) && (

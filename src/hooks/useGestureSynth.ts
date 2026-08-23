@@ -5,6 +5,7 @@ import { createTracker, loadModel, readHands } from '@/lib/vision'
 import { KEYS } from '@/lib/chords'
 import { Engine, IDLE_HUD, hudEqual, type Hud } from '@/lib/engine'
 import { isValid, type Calibration, type Step } from '@/lib/calibration'
+import { MidiOut, midiSupported, type MidiPort, type MidiStatus } from '@/lib/midi'
 import type { PoseTarget } from '@/lib/pose'
 import { DEFAULT_TIMBRE, type TimbreId } from '@/lib/timbre'
 import { recall, remember } from '@/lib/remember'
@@ -91,6 +92,13 @@ export function useGestureSynth() {
   const [stage, setStage] = useState<Stage>('audio')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
+  const midiRef = useRef<MidiOut | null>(null)
+  const [midiStatus, setMidiStatus] = useState<MidiStatus>(
+    midiSupported() ? 'idle' : 'unsupported',
+  )
+  const [midiPorts, setMidiPorts] = useState<MidiPort[]>([])
+  const [midiPort, setMidiPort] = useState('')
+
   const [calibration, setCalibration] = useState<CalibrationState>({
     step: null,
     problem: null,
@@ -230,6 +238,8 @@ export function useGestureSynth() {
     return () => {
       cancelAnimationFrame(frameRef.current)
       cleanupRef.current?.()
+      midiRef.current?.dispose()
+      midiRef.current = null
       engineRef.current?.dispose()
       const stream = videoRef.current?.srcObject
       if (stream instanceof MediaStream) stream.getTracks().forEach((t) => t.stop())
@@ -281,6 +291,28 @@ export function useGestureSynth() {
   /** Polled by the readout, so drawing a number never blocks the render loop. */
   const readDiagnostics = useCallback(() => engineRef.current?.diagnostics ?? null, [])
 
+  /** The browser asks the player for MIDI access; we only ask the browser. */
+  const enableMidi = useCallback(async () => {
+    if (!midiSupported()) return
+    setMidiStatus('asking')
+    try {
+      const out = midiRef.current ?? new MidiOut()
+      const ports = await out.connect()
+      midiRef.current = out
+      engineRef.current?.setMidi(out)
+      setMidiPorts(ports)
+      setMidiPort(ports[0]?.id ?? '')
+      setMidiStatus(ports.length ? 'ready' : 'idle')
+    } catch {
+      setMidiStatus('denied')
+    }
+  }, [])
+
+  const selectMidiPort = useCallback((id: string) => {
+    midiRef.current?.use(id)
+    setMidiPort(id)
+  }, [])
+
   const calibrateLean = useCallback(() => {
     const engine = engineRef.current
     if (!engine) return
@@ -329,6 +361,11 @@ export function useGestureSynth() {
     calibration,
     readDiagnostics,
     retry,
+    midiStatus,
+    midiPorts,
+    midiPort,
+    enableMidi,
+    selectMidiPort,
     setTarget,
     onCommit,
     audio,

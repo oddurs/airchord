@@ -13,6 +13,7 @@ import {
   type Key,
 } from './chords'
 import { Committer, Grace, Latch, Smoothed } from './smoothing'
+import { MidiOut } from './midi'
 import { STEPS, derive, reachTo01, type Calibration, type Samples, type Step } from './calibration'
 import type { PoseTarget } from './pose'
 import { Synth, type AudioBridge } from './synth'
@@ -264,6 +265,7 @@ export class Engine {
     fps: 0,
   }
   private observer: ((hands: HandState[]) => void) | null = null
+  private midi: MidiOut | null = null
 
   /**
    * The canvas is optional. Without one the engine still decides everything —
@@ -290,6 +292,7 @@ export class Engine {
     this.identity.release()
     this.held = null
     this.synth.stop()
+    this.midi?.stop()
   }
 
   setTimbre(id: TimbreId): void {
@@ -356,6 +359,12 @@ export class Engine {
     this.lean = cal
   }
 
+  /** A second output. The synth is not privileged; both hear the same chords. */
+  setMidi(out: MidiOut | null): void {
+    if (this.midi && this.midi !== out) this.midi.stop()
+    this.midi = out
+  }
+
   /** Read by the on-screen readout at its own pace; the loop never waits on it. */
   get diagnostics(): Diagnostics {
     return this.diag
@@ -367,6 +376,7 @@ export class Engine {
   }
 
   dispose(): void {
+    this.midi?.dispose()
     this.synth.dispose()
     this.overlay?.dispose()
   }
@@ -472,9 +482,12 @@ export class Engine {
       // when the set of pitches actually changes; play ignores it otherwise.
       const velocity = Math.min(1, this.stable.left.approach / FIRM_PLACEMENT)
       this.synth.play(chord.freqs, { velocity })
+      this.midi?.play(chord.freqs, velocity)
+      this.midi?.expression(volume, tilt)
       this.synth.setVolume(easedVolume)
     } else {
       this.synth.stop()
+      this.midi?.stop()
     }
 
     if (this.overlay && video) {

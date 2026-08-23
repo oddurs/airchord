@@ -14,8 +14,16 @@ const PAN_SPREAD = 0.55
 const REVOICE_FADE = 0.09
 /** How long a firmly placed chord takes to settle back to its held level. */
 const SETTLE = 0.07
-/** Spacing between voices when a chord is strummed rather than switched. */
-const STRUM_MAX = 0.03
+/**
+ * Spacing between voices when a chord is strummed rather than switched.
+ *
+ * Deliberately small. A strum is a progressive arrival, so until it finishes
+ * the chord is genuinely incomplete — starting one from silence at thirty
+ * milliseconds left the organ voice at a fifth of its level partway through,
+ * which reads as a hole rather than as a strum. Enough to hear the notes land
+ * separately, not enough to hear the chord go missing.
+ */
+const STRUM_MAX = 0.011
 /** How much above the held level the firmest placement arrives. */
 const OVERSHOOT_MAX = 0.35
 

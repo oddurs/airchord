@@ -114,7 +114,7 @@ export interface Diagnostics {
 
 export interface FrameInput {
   hands: HandState[]
-  video: HTMLVideoElement
+  video: HTMLVideoElement | null
   key: Key
   now: number
   /** Time the hand tracker spent on this frame, for the latency budget. */
@@ -187,7 +187,7 @@ class HandStabiliser {
  */
 export class Engine {
   private synth = new Synth()
-  private overlay: Overlay
+  private overlay: Overlay | null
   private stable = { left: new HandStabiliser(), right: new HandStabiliser() }
   private leftGrace = new Grace<HandState>(HAND_GRACE_MS)
   private rightGrace = new Grace<HandState>(EXPRESSION_GRACE_MS)
@@ -230,8 +230,14 @@ export class Engine {
   }
   private observer: ((hands: HandState[]) => void) | null = null
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.overlay = new Overlay(canvas)
+  /**
+   * The canvas is optional. Without one the engine still decides everything —
+   * fingers, degree, lean, register, chord — it simply draws nothing, which is
+   * what lets a recorded session be replayed through the real decision path in
+   * a test rather than through a copy of it that can drift.
+   */
+  constructor(canvas: HTMLCanvasElement | null) {
+    this.overlay = canvas ? new Overlay(canvas) : null
   }
 
   async start(): Promise<void> {
@@ -327,7 +333,7 @@ export class Engine {
 
   dispose(): void {
     this.synth.dispose()
-    this.overlay.dispose()
+    this.overlay?.dispose()
   }
 
   frame({ hands, video, key, now, inferenceMs }: FrameInput): Hud {
@@ -432,9 +438,11 @@ export class Engine {
       this.synth.stop()
     }
 
-    this.overlay.drawFrame(video)
-    this.overlay.drawHands(hands)
-    if (this.target) {
+    if (this.overlay && video) {
+      this.overlay.drawFrame(video)
+      this.overlay.drawHands(hands)
+    }
+    if (this.overlay && this.target) {
       const target = this.target
       if (left) {
         const reached = committed?.degree === target.degree && committed?.major === target.major
@@ -450,7 +458,7 @@ export class Engine {
         this.overlay.drawGhost(right, target.right, reached)
       }
     }
-    if (chord) {
+    if (chord && this.overlay) {
       this.overlay.drawWave({
         freqs: chord.freqs,
         degree: chord.degree,

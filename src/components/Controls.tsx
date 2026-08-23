@@ -24,6 +24,9 @@ interface Props {
   onCalibrate: () => void
   readoutOpen: boolean
   onToggleReadout: () => void
+  recording: boolean
+  recordingSeconds: number
+  onToggleRecording: () => void
 }
 
 export default function Controls({
@@ -44,6 +47,9 @@ export default function Controls({
   onCalibrate,
   readoutOpen,
   onToggleReadout,
+  recording,
+  recordingSeconds,
+  onToggleRecording,
 }: Props) {
   return (
     <div className={styles.controls}>
@@ -150,6 +156,15 @@ export default function Controls({
           title="Show what the instrument is reading from your hands"
         >
           Readout
+        </button>
+        <button
+          type="button"
+          className={`${styles.link} label`}
+          onClick={onToggleRecording}
+          aria-pressed={recording}
+          title="Record a stretch of playing, to replay against future changes"
+        >
+          {recording ? `Recording ${recordingSeconds}s` : 'Record'}
         </button>
       </nav>
 

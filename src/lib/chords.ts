@@ -157,9 +157,17 @@ export function neutralRollFor(degree: number | null): number {
   return NEUTRAL_ROLL[Math.min(NEUTRAL_ROLL.length, Math.max(1, degree)) - 1]
 }
 
-/** How far the hand has leaned from upright *for the pose it is making*. */
-export function leanOf(roll: number, degree: number | null): number {
-  return roll - neutralRollFor(degree)
+/**
+ * How far the hand has leaned from upright *for the pose it is making*.
+ *
+ * `offset` is the player's own bias, measured by calibration. The table is one
+ * person's hands recorded in one sitting, and where someone actually holds a
+ * hand while playing differs from where they hold it while posing for a
+ * capture — enough that an upright hand can read as leaned and the player ends
+ * up rotating inward to compensate.
+ */
+export function leanOf(roll: number, degree: number | null, offset = 0): number {
+  return roll - neutralRollFor(degree) - offset
 }
 
 /**
@@ -181,9 +189,14 @@ export function diatonicMajor(degree: number | null): boolean {
 }
 
 /** Whether the hand is leaned away from upright, for the pose it is making. */
-export function isLeaned(roll: number | null, degree: number | null, wasLeaned: boolean): boolean {
+export function isLeaned(
+  roll: number | null,
+  degree: number | null,
+  wasLeaned: boolean,
+  offset = 0,
+): boolean {
   if (roll === null) return false
-  const lean = leanOf(roll, degree)
+  const lean = leanOf(roll, degree, offset)
   if (lean < MINOR_ON) return true
   if (lean > MINOR_OFF) return false
   return wasLeaned

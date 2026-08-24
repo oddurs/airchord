@@ -26,11 +26,19 @@ const wrap = (value: number, size: number) => ((value % size) + size) % size
  * moving your hands makes the sound move, and a landing page that answers the
  * mouse says that before a word does.
  */
+/**
+ * Slow, broad and few. The instrument draws a chord's real interference pattern
+ * because there it is information; here nobody is playing, and the same
+ * settings read as agitation. Long undulations that take their time.
+ */
 const LAYERS = [
-  { scale: 2.6, alpha: 0.16, rate: 0.35, lift: 0.3 },
-  { scale: 1.5, alpha: 0.32, rate: 0.62, lift: 0.22 },
-  { scale: 1, alpha: 1, rate: 1, lift: 0.16 },
+  { scale: 2.6, alpha: 0.14, rate: 0.4, lift: 0.3, cycles: 0.7 },
+  { scale: 1.5, alpha: 0.28, rate: 0.66, lift: 0.22, cycles: 1.1 },
+  { scale: 1, alpha: 0.9, rate: 1, lift: 0.16, cycles: 1.5 },
 ]
+
+/** Slow enough that the movement is felt rather than watched. */
+const DRIFT = 0.05
 
 export default function LandingWave() {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -91,12 +99,15 @@ export default function LandingWave() {
 
       for (const layer of LAYERS) {
         const shared = {
-          centreY: canvas.height * (0.5 + layer.lift) - (aimY - 0.5) * canvas.height * 0.06,
+          centreY: canvas.height * (0.5 + layer.lift) - (aimY - 0.5) * canvas.height * 0.05,
           scale: scale * layer.scale,
-          volume: (0.34 + Math.sin(elapsed * 0.5) * 0.12) / layer.scale,
-          // The pointer opens and closes the waveform, the way a wrist does.
-          tilt: -0.62 + (aimX - 0.5) * 0.9 + Math.sin(elapsed * 0.23) * 0.16,
+          volume: (0.36 + Math.sin(elapsed * 0.18) * 0.1) / layer.scale,
+          // The pointer widens and narrows the undulation, the way a wrist would.
+          tilt: -0.2 + (aimX - 0.5) * 0.5 + Math.sin(elapsed * 0.09) * 0.12,
           now: started + (now - started) * layer.rate,
+          cycles: layer.cycles,
+          jitter: 0,
+          speed: DRIFT,
         }
         if (blend < 1) {
           paintWave(ctx, { ...shared, ...at(-1), alpha: (1 - blend) * layer.alpha })

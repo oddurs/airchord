@@ -5,25 +5,36 @@ import { KEYS, buildChord } from '@/lib/chords'
 import { paintWave } from '@/lib/wave'
 import styles from './LandingWave.module.css'
 
-/** Seconds each scale degree holds before the next fades in. */
+/** Seconds each chord holds before the next fades in. */
 const HOLD = 4.5
 const FADE = 1.4
 
-/**
- * The instrument's own energy wave, playing to itself. The landing page shows
- * the real thing rather than a picture of it — same code, same hues, same
- * mapping — so the first thing anyone sees is what the instrument does.
- *
- * It also carries through the loading state, which is what keeps starting up
- * from feeling like a splash screen followed by a spinner.
- */
 const KEY = KEYS.find((key) => key.name === 'E') ?? KEYS[0]
 
 /** Positive modulo. `-1 % 4` is -1 in JavaScript, which indexes nothing. */
 const wrap = (value: number, size: number) => ((value % size) + size) % size
 
+/**
+ * Three copies of the same waveform at different depths.
+ *
+ * One line is a picture of a wave; three at different scales, speeds and
+ * opacities is a field with somewhere to stand in it. They are all the same
+ * chord — the far layers are the same interference pattern seen larger and
+ * slower — so the depth is real rather than decorative.
+ *
+ * It also follows the pointer, faintly. The instrument's whole premise is that
+ * moving your hands makes the sound move, and a landing page that answers the
+ * mouse says that before a word does.
+ */
+const LAYERS = [
+  { scale: 2.6, alpha: 0.16, rate: 0.35, lift: 0.3 },
+  { scale: 1.5, alpha: 0.32, rate: 0.62, lift: 0.22 },
+  { scale: 1, alpha: 1, rate: 1, lift: 0.16 },
+]
+
 export default function LandingWave() {
   const ref = useRef<HTMLCanvasElement>(null)
+  const pointer = useRef({ x: 0.5, y: 0.5, active: false })
 
   useEffect(() => {
     const canvas = ref.current
@@ -40,46 +51,58 @@ export default function LandingWave() {
     resize()
     window.addEventListener('resize', resize)
 
+    const onPointer = (e: PointerEvent) => {
+      pointer.current = {
+        x: e.clientX / window.innerWidth,
+        y: e.clientY / window.innerHeight,
+        active: true,
+      }
+    }
+    const onLeave = () => (pointer.current = { x: 0.5, y: 0.5, active: false })
+    window.addEventListener('pointermove', onPointer)
+    window.addEventListener('pointerleave', onLeave)
+
     const started = performance.now()
     let frame = 0
+    // Eased rather than followed, so the field drifts toward the pointer.
+    let aimX = 0.5
+    let aimY = 0.5
 
     const draw = () => {
       const now = still ? started + 2600 : performance.now()
       const elapsed = (now - started) / 1000
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // Degrees hand over to one another rather than cutting, so the hue moves
-      // the way a chord change does.
+      aimX += (pointer.current.x - aimX) * 0.045
+      aimY += (pointer.current.y - aimY) * 0.045
+
       const step = elapsed / HOLD
       const index = Math.floor(step)
-      const into = (step - index) * HOLD
-      const blend = Math.min(1, into / FADE)
+      const blend = Math.min(1, ((step - index) * HOLD) / FADE)
 
-      const shared = {
-        centreY: canvas.height / 2,
-        scale,
-        volume: 0.4 + Math.sin(elapsed * 0.5) * 0.14,
-        // Tilt drives the jitter, and jitter at full range reads as a
-        // seismograph rather than an instrument. Held low and moving slowly.
-        tilt: -0.62 + Math.sin(elapsed * 0.23) * 0.22,
-        now,
-      }
-
-      // Real chords, built the way the instrument builds them, so the landing
-      // page draws genuine interference patterns rather than plausible ones.
-      // Every index here can go negative on the outgoing chord, and JavaScript's
-      // `%` keeps the sign — so they all wrap explicitly.
       const at = (n: number) => {
-        const step = index + n
-        const degree = wrap(step, 7) + 1
-        const major = wrap(step, 3) !== 2
-        const voicing = wrap(step, 4) + 1
+        const s = index + n
+        const degree = wrap(s, 7) + 1
+        const major = wrap(s, 3) !== 2
+        const voicing = wrap(s, 4) + 1
         const chord = buildChord(KEY, { degree, major, voicing, octave: 0 })
         return { degree, major, freqs: chord?.freqs ?? [] }
       }
 
-      if (blend < 1) paintWave(ctx, { ...shared, ...at(-1), alpha: 1 - blend })
-      paintWave(ctx, { ...shared, ...at(0), alpha: blend })
+      for (const layer of LAYERS) {
+        const shared = {
+          centreY: canvas.height * (0.5 + layer.lift) - (aimY - 0.5) * canvas.height * 0.06,
+          scale: scale * layer.scale,
+          volume: (0.34 + Math.sin(elapsed * 0.5) * 0.12) / layer.scale,
+          // The pointer opens and closes the waveform, the way a wrist does.
+          tilt: -0.62 + (aimX - 0.5) * 0.9 + Math.sin(elapsed * 0.23) * 0.16,
+          now: started + (now - started) * layer.rate,
+        }
+        if (blend < 1) {
+          paintWave(ctx, { ...shared, ...at(-1), alpha: (1 - blend) * layer.alpha })
+        }
+        paintWave(ctx, { ...shared, ...at(0), alpha: blend * layer.alpha })
+      }
 
       if (!still) frame = requestAnimationFrame(draw)
     }
@@ -88,6 +111,8 @@ export default function LandingWave() {
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', resize)
+      window.removeEventListener('pointermove', onPointer)
+      window.removeEventListener('pointerleave', onLeave)
     }
   }, [])
 

@@ -1,13 +1,12 @@
+/* Full bleed. The wave is the ground the type stands on, not a stripe beneath
+   it — the layers need the whole field for the parallax to be worth having. */
 .wave {
   position: absolute;
-  left: 0;
-  right: 0;
-  /* Sits below the type and above the ground, filling the lower third. */
-  bottom: 3vh;
-  height: 34vh;
+  inset: 0;
   width: 100%;
+  height: 100%;
   pointer-events: none;
-  /* Fades out at both edges so it reads as ambient rather than as a chart. */
-  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  /* Falls away at the edges so it reads as atmosphere rather than as a chart. */
+  mask-image: radial-gradient(120% 100% at 50% 55%, black 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 55%, black 35%, transparent 78%);
 }

@@ -9,7 +9,10 @@
   width: 100%;
   padding: 24px;
   border: 0;
-  background: var(--ground);
+  /* Not flat black: a faint lift behind the title gives the field a centre and
+     lets the edges fall away, so the composition has somewhere to look. */
+  background:
+    radial-gradient(115% 85% at 50% 42%, #16161a 0%, #0c0c0e 45%, var(--ground) 100%);
   color: var(--ink-strong);
   font: inherit;
   text-align: center;
@@ -25,9 +28,30 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Lifted off centre so the wave has the lower third to itself, but not so far
-     that the two stop reading as one composition. */
-  margin-bottom: 9vh;
+  /* The wave now fills the field rather than sitting beneath, so the type sits
+     in it rather than above it. */
+  margin-bottom: 2vh;
+}
+
+/*
+ * A scrim under the words.
+ *
+ * The wave earns its depth by filling the whole field, which means it crosses
+ * the type. Adding atmosphere at the cost of being able to read the sentence
+ * is a bad trade, so the type carries its own ground with it — soft enough that
+ * it still sits in the field rather than on top of it.
+ */
+.type::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 150%;
+  height: 230%;
+  background: radial-gradient(58% 54% at 50% 52%, rgba(10, 10, 12, 0.94) 0%, rgba(10, 10, 12, 0.76) 48%, transparent 78%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 .title {
@@ -36,7 +60,7 @@
   line-height: 0.92;
   letter-spacing: var(--track-display);
   color: var(--ink-full);
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: rise 1100ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
 }
 
 .standfirst {
@@ -46,7 +70,7 @@
   line-height: 1.5;
   letter-spacing: var(--track-body);
   color: var(--ink-quiet);
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  animation: rise 1000ms cubic-bezier(0.16, 1, 0.3, 1) 460ms both;
 }
 
 /* The rule doubles as the progress track: starting up continues the landing
@@ -55,9 +79,11 @@
   position: relative;
   width: min(260px, 60vw);
   margin-top: clamp(34px, 6vh, 62px);
-  padding-top: 18px;
+  padding: 16px 0 15px;
   border-top: 1px solid var(--hairline);
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both;
+  border-bottom: 1px solid var(--hairline);
+  transition: border-color 260ms ease, letter-spacing 260ms ease;
+  animation: rise 1000ms cubic-bezier(0.16, 1, 0.3, 1) 640ms both;
 }
 
 .track {
@@ -88,7 +114,7 @@
   margin-top: 14px;
   color: var(--ink-faint);
   font-size: 11.5px;
-  animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
+  animation: rise 1000ms cubic-bezier(0.16, 1, 0.3, 1) 820ms both;
 }
 
 @keyframes rise {
@@ -99,4 +125,21 @@
 @media (prefers-reduced-motion: reduce) {
   .title, .standfirst, .action, .note { animation: none; }
   .track { transition: none; }
+}
+
+/* The whole page is the button, so the target lights as the pointer moves
+   anywhere — the instrument answers movement, and so should this. */
+.landing[data-ready='true']:hover .action {
+  border-color: var(--ink-quiet);
+}
+
+.landing[data-ready='true']:hover .label {
+  letter-spacing: 0.26em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action,
+  .label {
+    transition: none;
+  }
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import { KEYS } from '@/lib/chords'
 import { BPM_RANGE, SIGNATURES } from '@/lib/beat'
 import { TIMBRES, type TimbreId } from '@/lib/timbre'
@@ -43,6 +45,14 @@ const MIDI_LABEL: Record<MidiStatus, string> = {
   denied: 'MIDI refused',
 }
 
+/**
+ * Grouped by when a control is reached for, not by what it is.
+ *
+ * Seven links in one row read as peers and were not: Hold is grabbed mid-song,
+ * Calibrate is done once per player, Readout and Record exist to diagnose a
+ * fault. Setup and diagnostics fold away, and nothing a player reaches for
+ * while playing has moved.
+ */
 export default function Controls({
   keyIndex,
   onKeyChange,
@@ -70,6 +80,8 @@ export default function Controls({
   onEnableMidi,
   onSelectMidiPort,
 }: Props) {
+  const [setupOpen, setSetupOpen] = useState(false)
+
   return (
     <div className={styles.controls}>
       <label className={styles.field}>
@@ -150,7 +162,7 @@ export default function Controls({
         </label>
       )}
 
-      <nav className={styles.links}>
+      <nav className={styles.performance}>
         <button
           type="button"
           className={`${styles.link} label`}
@@ -166,6 +178,18 @@ export default function Controls({
         <button type="button" className={`${styles.link} label`} onClick={onOpenAbout}>
           About
         </button>
+        <button
+          type="button"
+          className={`${styles.link} label`}
+          onClick={() => setSetupOpen((open) => !open)}
+          aria-expanded={setupOpen}
+        >
+          Setup
+        </button>
+      </nav>
+
+      {setupOpen && (
+        <nav className={styles.links}>
         <button
           type="button"
           className={`${styles.link} label`}
@@ -217,7 +241,8 @@ export default function Controls({
             {MIDI_LABEL[midiStatus]}
           </button>
         )}
-      </nav>
+        </nav>
+      )}
 
       {(calibration.step || calibration.problem) && (
         <p className={styles.coaching}>

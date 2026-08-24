@@ -136,3 +136,27 @@
   font-size: 11.5px;
   line-height: 1.5;
 }
+
+/* Hold is the one control reached for mid-song, so it does not sit in a row of
+   links that also contains Calibrate. */
+.performance {
+  display: flex;
+  gap: 20px;
+  margin-top: 4px;
+}
+
+/* Secondary rows: help, then setup once asked for. Quieter than performance,
+   and quieter still the further they are from playing. */
+.links {
+  margin-top: 2px;
+}
+
+.links .link {
+  color: var(--ink-faint);
+}
+
+.links .link:hover,
+.links .link[aria-expanded='true'],
+.links .link[aria-pressed='true'] {
+  color: var(--ink-full);
+}

@@ -34,12 +34,16 @@ export default function Landing({ phase, stage, progress, onStart }: Props) {
         <span className={styles.standfirst}>A chord synthesiser you play with your hands.</span>
 
         <span className={styles.action}>
-          <span className={styles.track} style={{ width: `${fraction * 100}%` }} />
-          <span className={`${styles.label} label tabular`}>
-            {ready ? 'Begin' : STAGE_LABEL[stage]}
-            {stage === 'model' && !ready && (
-              <span className={styles.percent}>{Math.round(progress * 100)}</span>
-            )}
+          {/* Everything inside is taken out of flow. The label changes with each
+              stage and the percentage appears part way through, and if either
+              could affect layout the whole block would shuffle while you watch
+              it — which is exactly what it used to do. */}
+          <span className={`${styles.label} label`}>{ready ? 'Begin' : STAGE_LABEL[stage]}</span>
+          <span className={`${styles.percent} label tabular`}>
+            {stage === 'model' && !ready ? Math.round(progress * 100) : ''}
+          </span>
+          <span className={styles.track}>
+            <span className={styles.fill} style={{ width: `${fraction * 100}%` }} />
           </span>
         </span>
 

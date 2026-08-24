@@ -48,6 +48,19 @@ export interface WaveSpec {
   /** Device pixels per CSS pixel, so the layout constants stay honest. */
   scale: number
   alpha?: number
+  /**
+   * Overrides for a context that is not reporting a performance.
+   *
+   * In the instrument every one of these is meaningful — the cycle count is the
+   * chord's own period, the jitter is the wrist. On a landing page nobody is
+   * playing, so the same settings read as agitation rather than as information.
+   * The defaults are the instrument's; only the landing passes anything.
+   */
+  cycles?: number
+  /** 0 removes the tilt-driven shimmer entirely. */
+  jitter?: number
+  /** Multiplies how fast the waveform travels. */
+  speed?: number
 }
 
 export function paintWave(ctx: CanvasRenderingContext2D, spec: WaveSpec): void {
@@ -59,9 +72,9 @@ export function paintWave(ctx: CanvasRenderingContext2D, spec: WaveSpec): void {
   const ratios = freqs.map((f) => f / fundamental)
 
   // Rolling the wrist opens and closes the window onto the waveform.
-  const cycles = BASE_CYCLES * Math.pow(1.6, -tilt)
+  const cycles = (spec.cycles ?? BASE_CYCLES) * Math.pow(1.6, -tilt)
   // Scroll at the chord's own rate, slowed to something the eye can follow.
-  const phase = (now / 1000) * fundamental * 0.06
+  const phase = (now / 1000) * fundamental * 0.06 * (spec.speed ?? 1)
 
   const samples: number[] = []
   let peak = 0

@@ -77,23 +77,53 @@
    page rather than replacing it with a spinner. */
 .action {
   position: relative;
-  width: min(260px, 60vw);
+  width: min(280px, 66vw);
+  height: 52px;
   margin-top: clamp(34px, 6vh, 62px);
-  padding: 16px 0 15px;
   border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
-  transition: border-color 260ms ease, letter-spacing 260ms ease;
   animation: rise 1000ms cubic-bezier(0.16, 1, 0.3, 1) 640ms both;
 }
 
+/* Centred, and out of flow so its width cannot move anything. */
+.label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 17px;
+  color: var(--ink-full);
+  transition: letter-spacing 260ms ease, color 260ms ease;
+}
+
+.percent {
+  position: absolute;
+  right: 0;
+  top: 17px;
+  min-width: 3ch;
+  text-align: right;
+  color: var(--ink-quiet);
+}
+
+/* The loader is the rule the label sits on, filling from the left. */
 .track {
   position: absolute;
-  top: -1px;
   left: 0;
+  right: 0;
+  bottom: 0;
   height: 1px;
-  background: var(--ink-full);
-  transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--hairline);
+  overflow: hidden;
 }
+
+.fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--ink-full);
+  box-shadow: 0 0 10px rgba(var(--ink), 0.5);
+  transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 
 .label {
   display: flex;
@@ -129,12 +159,17 @@
 
 /* The whole page is the button, so the target lights as the pointer moves
    anywhere — the instrument answers movement, and so should this. */
+/* The whole page is the button, so the target answers a pointer anywhere. */
 .landing[data-ready='true']:hover .action {
-  border-color: var(--ink-quiet);
+  border-top-color: var(--ink-quiet);
+}
+
+.landing[data-ready='true']:hover .track {
+  background: var(--ink-faint);
 }
 
 .landing[data-ready='true']:hover .label {
-  letter-spacing: 0.26em;
+  letter-spacing: 0.3em;
 }
 
 @media (prefers-reduced-motion: reduce) {
